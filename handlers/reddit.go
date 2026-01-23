@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kova98/feedgrep.api/config"
 	"github.com/kova98/feedgrep.api/models"
 )
 
@@ -29,7 +30,7 @@ func NewRedditHandler(logger *slog.Logger, emailHandler *EmailHandler) *RedditHa
 		emailHandler: emailHandler,
 		seenPosts:    make(map[string]bool),
 		seenComments: make(map[string]bool),
-		keywords:     []string{"hello", "test"},
+		keywords:     config.Config.Keywords,
 	}
 }
 

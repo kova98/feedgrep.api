@@ -3,6 +3,7 @@ package config
 import (
 	"log/slog"
 	"os"
+	"strings"
 )
 
 const (
@@ -20,6 +21,7 @@ type AppConfig struct {
 	SMTPPort             string
 	SMTPFrom             string
 	SMTPPassword         string
+	Keywords             []string
 	AppEnv               string // EnvDevelopment or EnvProduction
 	LogLevel             slog.Level
 }
@@ -39,6 +41,7 @@ func LoadConfig() {
 	cfg.SMTPPort = loadRequired("SMTP_PORT")
 	cfg.SMTPFrom = loadRequired("SMTP_FROM")
 	cfg.SMTPPassword = loadRequired("SMTP_PASSWORD")
+	cfg.Keywords = strings.Split(loadRequired("KEYWORDS"), ",")
 
 	lvlString := loadOptional("LOG_LEVEL", "INFO")
 	var err error
