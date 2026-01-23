@@ -1,6 +1,6 @@
 module github.com/kova98/feedgrep.api
 
-go 1.23.0
+go 1.24.0
 
 require (
 	github.com/Nerzal/gocloak/v13 v13.9.0
@@ -21,6 +21,6 @@ require (
 	github.com/sethvargo/go-retry v0.3.0 // indirect
 	github.com/vartanbeno/go-reddit/v2 v2.0.1 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/net v0.42.0 // indirect
+	golang.org/x/net v0.49.0 // indirect
 	golang.org/x/sync v0.16.0 // indirect
 )

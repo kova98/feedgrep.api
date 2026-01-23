@@ -23,10 +23,10 @@ type RedditHandler struct {
 	keywords     []string
 }
 
-func NewRedditHandler(logger *slog.Logger, emailHandler *EmailHandler) *RedditHandler {
+func NewRedditHandler(logger *slog.Logger, emailHandler *EmailHandler, httpClient *http.Client) *RedditHandler {
 	return &RedditHandler{
 		logger:       logger,
-		httpClient:   &http.Client{Timeout: 10 * time.Second},
+		httpClient:   httpClient,
 		emailHandler: emailHandler,
 		seenPosts:    make(map[string]bool),
 		seenComments: make(map[string]bool),
@@ -37,14 +37,14 @@ func NewRedditHandler(logger *slog.Logger, emailHandler *EmailHandler) *RedditHa
 func (h *RedditHandler) StartPolling(ctx context.Context) {
 	interval := 10 * time.Second
 
-	h.logger.Info("Starting Reddit polling", "keywords", h.keywords, "interval", interval)
+	h.logger.Info("starting reddit polling", "keywords", h.keywords, "interval", interval)
 
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
-			h.logger.Info("Stopping Reddit polling...")
+			h.logger.Info("stopping reddit polling")
 			return
 		case <-ticker.C:
 			h.pollOnce()
@@ -61,7 +61,7 @@ func (h *RedditHandler) pollOnce() {
 func (h *RedditHandler) pollPosts() {
 	listing, err := h.fetchReddit("https://www.reddit.com/r/all/new/.json?limit=100")
 	if err != nil {
-		h.logger.Error("Failed to fetch posts", "error", err)
+		h.logger.Error("poll posts:", "error", err)
 		return
 	}
 
@@ -90,7 +90,7 @@ func (h *RedditHandler) pollPosts() {
 func (h *RedditHandler) pollComments() {
 	listing, err := h.fetchReddit("https://www.reddit.com/r/all/comments/.json?limit=100")
 	if err != nil {
-		h.logger.Error("Failed to fetch comments", "error", err)
+		h.logger.Error("poll comments:", "error", err)
 		return
 	}
 
@@ -126,7 +126,6 @@ func (h *RedditHandler) fetchReddit(url string) (*models.RedditListing, error) {
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
-	req.Header.Set("Accept-Encoding", "gzip, deflate")
 	req.Header.Set("DNT", "1")
 	req.Header.Set("Connection", "keep-alive")
 	req.Header.Set("Upgrade-Insecure-Requests", "1")

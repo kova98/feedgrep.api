@@ -5,7 +5,9 @@ import (
 	"embed"
 	"encoding/json"
 	"log/slog"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"syscall"
@@ -15,6 +17,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	_ "github.com/joho/godotenv/autoload"
 	_ "github.com/lib/pq"
+	"golang.org/x/net/proxy"
 
 	"github.com/kova98/feedgrep.api/config"
 	"github.com/kova98/feedgrep.api/data"
@@ -67,9 +70,14 @@ func main() {
 		config.Config.SMTPPassword,
 	)
 
+	client, err := httpClient(config.Config.ProxyURL)
+	if err != nil {
+		slog.Error("failed to create http client", "error", err)
+		os.Exit(1)
+	}
+	pollHandler := handlers.NewRedditHandler(logger, emailHandler, client)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	pollHandler := handlers.NewRedditHandler(logger, emailHandler)
 	go pollHandler.StartPolling(ctx)
 
 	mux := http.NewServeMux()
@@ -94,6 +102,46 @@ func main() {
 	if err != nil {
 		slog.Error("failed to start server", "error", err)
 	}
+}
+
+func httpClient(proxyURL string) (*http.Client, error) {
+	client := &http.Client{Timeout: 10 * time.Second}
+
+	if proxyURL == "" {
+		return client, nil
+	}
+
+	parsedURL, err := url.Parse(proxyURL)
+	if err != nil {
+		return nil, err
+	}
+	if parsedURL.Scheme != "socks5" {
+		return client, nil
+	}
+
+	// SOCKS5 proxy with authentication
+	var auth *proxy.Auth
+	if parsedURL.User != nil {
+		password, _ := parsedURL.User.Password()
+		auth = &proxy.Auth{
+			User:     parsedURL.User.Username(),
+			Password: password,
+		}
+	}
+
+	dialer, err := proxy.SOCKS5("tcp", parsedURL.Host, auth, proxy.Direct)
+	if err != nil {
+		return nil, err
+	}
+
+	client.Transport = &http.Transport{
+		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			return dialer.Dial(network, addr)
+		},
+	}
+	slog.Info("using SOCKS5 proxy", "proxy", parsedURL.Host)
+
+	return client, nil
 }
 
 func withCORS(next http.Handler) http.Handler {
