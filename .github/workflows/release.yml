@@ -1,0 +1,70 @@
+name: API Release
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  release:
+    name: Release API
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@master
+        
+      - name: Generate semantic version
+        id: semantic
+        uses: go-semantic-release/action@v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/feedgrep.api:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/feedgrep.api:${{ steps.semantic.outputs.version }}
+            
+  deploy:
+    name: Deploy API
+    runs-on: ubuntu-latest
+    needs: release
+    steps:
+      - name: Docker Compose Pull and Up
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            cd feedgrep
+            docker compose pull
+            docker compose up -d api
+
+      - name: Check Health
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            cd feedgrep
+            sleep 10  # Allow some time for services to initialize
+            if ! docker compose ps | grep -q 'Up'; then
+                echo "Api failed to start"
+                docker logs feedgrep.api
+                exit 1
+            else    
+                echo "Api is up and running"
+            fi
