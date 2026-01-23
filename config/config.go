@@ -16,6 +16,10 @@ type AppConfig struct {
 	KeycloakRealm        string
 	KeycloakURL          string
 	PostgresURL          string
+	SMTPHost             string
+	SMTPPort             string
+	SMTPFrom             string
+	SMTPPassword         string
 	AppEnv               string // EnvDevelopment or EnvProduction
 	LogLevel             slog.Level
 }
@@ -31,6 +35,10 @@ func LoadConfig() {
 	cfg.KeycloakRealm = loadRequired("KEYCLOAK_REALM")
 	cfg.KeycloakURL = loadRequired("KEYCLOAK_URL")
 	cfg.PostgresURL = loadRequired("POSTGRES_URL")
+	cfg.SMTPHost = loadRequired("SMTP_HOST")
+	cfg.SMTPPort = loadRequired("SMTP_PORT")
+	cfg.SMTPFrom = loadRequired("SMTP_FROM")
+	cfg.SMTPPassword = loadRequired("SMTP_PASSWORD")
 
 	lvlString := loadOptional("LOG_LEVEL", "INFO")
 	var err error

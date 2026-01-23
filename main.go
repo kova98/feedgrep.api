@@ -59,11 +59,17 @@ func main() {
 	auth = handlers.NewAuthHandler(keycloakClient)
 	go auth.StartTokenTicker()
 
-	// Create context for graceful shutdown
+	emailHandler := handlers.NewEmailHandler(
+		logger,
+		config.Config.SMTPHost,
+		config.Config.SMTPPort,
+		config.Config.SMTPFrom,
+		config.Config.SMTPPassword,
+	)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-
-	pollHandler := handlers.NewRedditHandler(logger)
+	pollHandler := handlers.NewRedditHandler(logger, emailHandler)
 	go pollHandler.StartPolling(ctx)
 
 	mux := http.NewServeMux()
@@ -75,7 +81,7 @@ func main() {
 	go func() {
 		<-sigCh
 		slog.Info("Shutting down...")
-		cancel() // Stop polling
+		cancel()
 		if err := db.Close(); err != nil {
 			slog.Error("failed to close database connection", "error", err)
 		}

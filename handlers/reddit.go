@@ -16,15 +16,17 @@ import (
 type RedditHandler struct {
 	logger       *slog.Logger
 	httpClient   *http.Client
+	emailHandler *EmailHandler
 	seenPosts    map[string]bool
 	seenComments map[string]bool
 	keywords     []string
 }
 
-func NewRedditHandler(logger *slog.Logger) *RedditHandler {
+func NewRedditHandler(logger *slog.Logger, emailHandler *EmailHandler) *RedditHandler {
 	return &RedditHandler{
 		logger:       logger,
 		httpClient:   &http.Client{Timeout: 10 * time.Second},
+		emailHandler: emailHandler,
 		seenPosts:    make(map[string]bool),
 		seenComments: make(map[string]bool),
 		keywords:     []string{"hello", "test"},
@@ -141,17 +143,35 @@ func (h *RedditHandler) fetchReddit(url string) (*models.RedditListing, error) {
 }
 
 func (h *RedditHandler) onMatched(post models.RedditPost, keyword string) {
-	preview := post.Selftext
-	if len(preview) > 200 {
-		preview = preview[:200] + "..."
+	url := fmt.Sprintf("https://reddit.com%s", post.Permalink)
+	err := h.emailHandler.SendEmail(
+		"roko@barelytics.io",
+		keyword,
+		post.Subreddit,
+		post.Author,
+		post.Title,
+		post.Selftext,
+		url,
+		false, // isComment
+	)
+	if err != nil {
+		h.logger.Error("Failed to send email for post match", "error", err, "post_id", post.ID)
 	}
-	fmt.Printf("Body:      %s\n", preview)
 }
 
 func (h *RedditHandler) printCommentMatch(comment models.RedditPost, keyword string) {
-	preview := comment.Body
-	if len(preview) > 200 {
-		preview = preview[:200] + "..."
+	url := fmt.Sprintf("https://reddit.com%s", comment.Permalink)
+	err := h.emailHandler.SendEmail(
+		"roko@barelytics.io",
+		keyword,
+		comment.Subreddit,
+		comment.Author,
+		"", // no title for comments
+		comment.Body,
+		url,
+		true, // isComment
+	)
+	if err != nil {
+		h.logger.Error("Failed to send email for comment match", "error", err, "comment_id", comment.ID)
 	}
-	fmt.Printf("Body:      %s\n", preview)
 }
