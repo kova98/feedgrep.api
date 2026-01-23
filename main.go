@@ -43,10 +43,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	db.SetMaxOpenConns(90)                 // Max 90 connections (under Postgres limit of 100)
-	db.SetMaxIdleConns(25)                 // Keep 25 idle connections ready
-	db.SetConnMaxLifetime(5 * time.Minute) // Recycle connections every 5 minutes
-	db.SetConnMaxIdleTime(1 * time.Minute) // Close idle connections after 1 minute
+	db.SetMaxOpenConns(90)
+	db.SetMaxIdleConns(25)
+	db.SetConnMaxLifetime(5 * time.Minute)
+	db.SetConnMaxIdleTime(1 * time.Minute)
 
 	if err := data.RunMigrations(db.DB, embedMigrations); err != nil {
 		slog.Error("failed to run migrations", "error", err)
@@ -55,15 +55,18 @@ func main() {
 
 	usersRepo := repos.NewUserRepo(db)
 	users := handlers.NewUserHandler(usersRepo)
-	hello := handlers.NewHelloHandler()
 	keycloakClient := gocloak.NewClient(config.Config.KeycloakURL)
 	auth = handlers.NewAuthHandler(keycloakClient)
 	go auth.StartTokenTicker()
 
-	mux := http.NewServeMux()
+	// Create context for graceful shutdown
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	mux.HandleFunc("GET /hello", public(hello.GetHello))
-	mux.HandleFunc("POST /hello", private(hello.PostHello))
+	pollHandler := handlers.NewRedditHandler(logger)
+	go pollHandler.StartPolling(ctx)
+
+	mux := http.NewServeMux()
 
 	mux.HandleFunc("POST /users/init", private(users.InitializeUser))
 
@@ -72,6 +75,7 @@ func main() {
 	go func() {
 		<-sigCh
 		slog.Info("Shutting down...")
+		cancel() // Stop polling
 		if err := db.Close(); err != nil {
 			slog.Error("failed to close database connection", "error", err)
 		}
