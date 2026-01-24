@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"log/slog"
 	"os"
 	"strings"
@@ -22,6 +23,7 @@ type AppConfig struct {
 	SMTPFrom             string
 	SMTPPassword         string
 	ProxyURL             string
+	PollIntervalSeconds  int
 	Keywords             []string
 	AppEnv               string // EnvDevelopment or EnvProduction
 	LogLevel             slog.Level
@@ -44,6 +46,7 @@ func LoadConfig() {
 	cfg.SMTPPassword = loadRequired("SMTP_PASSWORD")
 	cfg.ProxyURL = loadOptional("PROXY_URL", "")
 	cfg.Keywords = strings.Split(loadRequired("KEYWORDS"), ",")
+	cfg.PollIntervalSeconds = parseIntEnv(loadOptional("POLL_INTERVAL_SECONDS", "15"))
 
 	lvlString := loadOptional("LOG_LEVEL", "INFO")
 	var err error
@@ -60,6 +63,16 @@ func parseLogLevel(s string) (slog.Level, error) {
 	var level slog.Level
 	var err = level.UnmarshalText([]byte(s))
 	return level, err
+}
+
+func parseIntEnv(str string) int {
+	var value int
+	_, err := fmt.Sscanf(str, "%d", &value)
+	if err != nil {
+		slog.Error("Invalid integer env var", "var", str, "error", err)
+		os.Exit(1)
+	}
+	return value
 }
 
 func loadRequired(key string) string {

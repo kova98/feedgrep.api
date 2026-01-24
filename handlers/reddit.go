@@ -21,6 +21,7 @@ type RedditHandler struct {
 	seenPosts    map[string]bool
 	seenComments map[string]bool
 	keywords     []string
+	pollInterval time.Duration
 }
 
 func NewRedditHandler(logger *slog.Logger, emailHandler *EmailHandler, httpClient *http.Client) *RedditHandler {
@@ -31,15 +32,14 @@ func NewRedditHandler(logger *slog.Logger, emailHandler *EmailHandler, httpClien
 		seenPosts:    make(map[string]bool),
 		seenComments: make(map[string]bool),
 		keywords:     config.Config.Keywords,
+		pollInterval: time.Duration(config.Config.PollIntervalSeconds) * time.Second,
 	}
 }
 
 func (h *RedditHandler) StartPolling(ctx context.Context) {
-	interval := 10 * time.Second
+	h.logger.Info("starting reddit polling", "keywords", h.keywords, "interval", h.pollInterval.Seconds())
 
-	h.logger.Info("starting reddit polling", "keywords", h.keywords, "interval", interval)
-
-	ticker := time.NewTicker(interval)
+	ticker := time.NewTicker(h.pollInterval)
 	defer ticker.Stop()
 	for {
 		select {
