@@ -77,7 +77,7 @@ func main() {
 		slog.Error("failed to create http client", "error", err)
 		os.Exit(1)
 	}
-	pollHandler := handlers.NewRedditHandler(logger, emailHandler, client)
+	pollHandler := handlers.NewRedditHandler(logger, emailHandler, client, keywordRepo)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	if config.Config.EnableRedditPolling {

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/kova98/feedgrep.api/data"
 	"github.com/kova98/feedgrep.api/data/repos"
@@ -26,17 +27,18 @@ func (h *KeywordHandler) CreateKeyword(w http.ResponseWriter, r *http.Request) R
 		return BadRequest("Invalid request.")
 	}
 
-	if req.Keyword == "" {
+	normalized := strings.ToLower(strings.TrimSpace(req.Keyword))
+	if normalized == "" {
 		return BadRequest("Keyword is required.")
 	}
 
-	if len(req.Keyword) < 4 || len(req.Keyword) > 50 {
+	if len(normalized) < 4 || len(normalized) > 50 {
 		return BadRequest("Keyword must be between 4 and 50 characters.")
 	}
 
 	keyword := data.Keyword{
 		UserID:  user.ID,
-		Keyword: req.Keyword,
+		Keyword: normalized,
 		Active:  true,
 	}
 
@@ -110,14 +112,15 @@ func (h *KeywordHandler) UpdateKeyword(w http.ResponseWriter, r *http.Request) R
 		return BadRequest("Invalid request.")
 	}
 
-	if req.Keyword == "" {
+	normalized := strings.ToLower(strings.TrimSpace(req.Keyword))
+	if normalized == "" {
 		return BadRequest("Keyword is required.")
 	}
 
 	keyword := data.Keyword{
 		ID:      id,
 		UserID:  user.ID,
-		Keyword: req.Keyword,
+		Keyword: normalized,
 		Active:  req.Active,
 	}
 

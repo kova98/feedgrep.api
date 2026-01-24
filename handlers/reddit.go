@@ -11,43 +11,56 @@ import (
 	"time"
 
 	"github.com/kova98/feedgrep.api/config"
+	"github.com/kova98/feedgrep.api/data/repos"
 	"github.com/kova98/feedgrep.api/models"
 )
 
 type RedditHandler struct {
-	logger       *slog.Logger
-	httpClient   *http.Client
-	emailHandler *EmailHandler
-	seenPosts    map[string]bool
-	seenComments map[string]bool
-	keywords     []string
-	pollInterval time.Duration
+	logger          *slog.Logger
+	httpClient      *http.Client
+	emailHandler    *EmailHandler
+	keywordRepo     *repos.KeywordRepo
+	seenPosts       map[string]bool
+	seenComments    map[string]bool
+	subscriptions   []keywordSubscription
+	pollInterval    time.Duration
+	keywordInterval time.Duration
+}
+type keywordSubscription struct {
+	keyword string
+	email   string
 }
 
-func NewRedditHandler(logger *slog.Logger, emailHandler *EmailHandler, httpClient *http.Client) *RedditHandler {
+func NewRedditHandler(logger *slog.Logger, emailHandler *EmailHandler, httpClient *http.Client, keywordRepo *repos.KeywordRepo) *RedditHandler {
 	return &RedditHandler{
-		logger:       logger,
-		httpClient:   httpClient,
-		emailHandler: emailHandler,
-		seenPosts:    make(map[string]bool),
-		seenComments: make(map[string]bool),
-		keywords:     config.Config.Keywords,
-		pollInterval: time.Duration(config.Config.PollIntervalSeconds) * time.Second,
+		logger:          logger,
+		httpClient:      httpClient,
+		emailHandler:    emailHandler,
+		keywordRepo:     keywordRepo,
+		seenPosts:       make(map[string]bool),
+		seenComments:    make(map[string]bool),
+		pollInterval:    time.Duration(config.Config.PollIntervalSeconds) * time.Second,
+		keywordInterval: time.Minute,
 	}
 }
 
 func (h *RedditHandler) StartPolling(ctx context.Context) {
-	h.logger.Info("starting reddit polling", "keywords", h.keywords, "interval", h.pollInterval.Seconds())
+	h.loadKeywords()
+	h.logger.Info("starting reddit polling", "subscriptions", len(h.subscriptions), "interval", h.pollInterval.Seconds())
 
-	ticker := time.NewTicker(h.pollInterval)
-	defer ticker.Stop()
+	pollTicker := time.NewTicker(h.pollInterval)
+	keywordTicker := time.NewTicker(h.keywordInterval)
+	defer pollTicker.Stop()
+	defer keywordTicker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
 			h.logger.Info("stopping reddit polling")
 			return
-		case <-ticker.C:
+		case <-pollTicker.C:
 			h.pollOnce()
+		case <-keywordTicker.C:
+			h.loadKeywords()
 		}
 	}
 }
@@ -76,9 +89,9 @@ func (h *RedditHandler) pollPosts() {
 		title := strings.ToLower(post.Title)
 		body := strings.ToLower(post.Selftext)
 
-		for _, keyword := range h.keywords {
-			if strings.Contains(title, keyword) || strings.Contains(body, keyword) {
-				h.onMatched(post, keyword)
+		for _, sub := range h.subscriptions {
+			if strings.Contains(title, sub.keyword) || strings.Contains(body, sub.keyword) {
+				h.onMatched(post, sub.keyword, sub.email)
 				newMatches++
 			}
 		}
@@ -105,9 +118,9 @@ func (h *RedditHandler) pollComments() {
 
 		body := strings.ToLower(comment.Body)
 
-		for _, keyword := range h.keywords {
-			if strings.Contains(body, keyword) {
-				h.printCommentMatch(comment, keyword)
+		for _, sub := range h.subscriptions {
+			if strings.Contains(body, sub.keyword) {
+				h.printCommentMatch(comment, sub.keyword, sub.email)
 				newMatches++
 			}
 		}
@@ -149,10 +162,31 @@ func (h *RedditHandler) fetchReddit(url string) (*models.RedditListing, error) {
 	return &listing, nil
 }
 
-func (h *RedditHandler) onMatched(post models.RedditPost, keyword string) {
+func (h *RedditHandler) loadKeywords() {
+	keywords, err := h.keywordRepo.GetActiveKeywordsWithEmails()
+	if err != nil {
+		h.logger.Error("failed to refresh subscriptions", "error", err)
+		return
+	}
+
+	active := make([]keywordSubscription, 0, len(keywords))
+	for _, keyword := range keywords {
+		kw := strings.TrimSpace(strings.ToLower(keyword.Keyword))
+		email := strings.TrimSpace(keyword.Email)
+		if kw == "" || email == "" {
+			continue
+		}
+		active = append(active, keywordSubscription{keyword: kw, email: email})
+	}
+
+	h.subscriptions = active
+	h.logger.Info("refreshed subscriptions", "count", len(h.subscriptions))
+}
+
+func (h *RedditHandler) onMatched(post models.RedditPost, keyword, email string) {
 	url := fmt.Sprintf("https://reddit.com%s", post.Permalink)
 	err := h.emailHandler.SendEmail(
-		"roko@barelytics.io",
+		email,
 		keyword,
 		post.Subreddit,
 		post.Author,
@@ -166,10 +200,10 @@ func (h *RedditHandler) onMatched(post models.RedditPost, keyword string) {
 	}
 }
 
-func (h *RedditHandler) printCommentMatch(comment models.RedditPost, keyword string) {
+func (h *RedditHandler) printCommentMatch(comment models.RedditPost, keyword, email string) {
 	url := fmt.Sprintf("https://reddit.com%s", comment.Permalink)
 	err := h.emailHandler.SendEmail(
-		"roko@barelytics.io",
+		email,
 		keyword,
 		comment.Subreddit,
 		comment.Author,

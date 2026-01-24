@@ -96,6 +96,23 @@ func (r *KeywordRepo) GetActiveKeywords() ([]data.Keyword, error) {
 	return keywords, nil
 }
 
+func (r *KeywordRepo) GetActiveKeywordsWithEmails() ([]data.KeywordNotification, error) {
+	var keywords []data.KeywordNotification
+	query := `
+		SELECT k.keyword, u.email
+		FROM keywords k
+		JOIN users u ON u.id = k.user_id
+		WHERE k.active = true
+		ORDER BY k.created_at DESC`
+
+	err := r.db.Select(&keywords, query)
+	if err != nil {
+		return nil, fmt.Errorf("get active keywords with emails: %w", err)
+	}
+
+	return keywords, nil
+}
+
 func (r *KeywordRepo) UpdateKeyword(keyword data.Keyword) error {
 	query := `
 		UPDATE keywords
