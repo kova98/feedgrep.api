@@ -1,4 +1,3 @@
-# Start from the official Go image for building
 FROM golang:1.24-alpine AS builder
 WORKDIR /app
 COPY go.mod go.sum ./

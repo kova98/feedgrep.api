@@ -3,8 +3,6 @@ package handlers
 import (
 	"errors"
 	"net/http"
-
-	"github.com/google/uuid"
 )
 
 type Handler func(http.ResponseWriter, *http.Request) Result
@@ -20,7 +18,7 @@ type ErrorResponse struct {
 }
 
 type CreatedResponse struct {
-	ID uuid.UUID `json:"id"`
+	ID interface{} `json:"id"`
 }
 
 func BadRequest(message string) Result {
@@ -51,7 +49,7 @@ func Ok(body interface{}) Result {
 	}
 }
 
-func Created(id uuid.UUID) Result {
+func Created(id interface{}) Result {
 	return Result{
 		Code: http.StatusCreated,
 		Body: CreatedResponse{id},

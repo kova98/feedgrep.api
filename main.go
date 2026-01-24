@@ -58,6 +58,8 @@ func main() {
 
 	usersRepo := repos.NewUserRepo(db)
 	users := handlers.NewUserHandler(usersRepo)
+	keywordRepo := repos.NewKeywordRepo(db)
+	keywords := handlers.NewKeywordHandler(keywordRepo)
 	keycloakClient := gocloak.NewClient(config.Config.KeycloakURL)
 	auth = handlers.NewAuthHandler(keycloakClient)
 	go auth.StartTokenTicker()
@@ -78,11 +80,19 @@ func main() {
 	pollHandler := handlers.NewRedditHandler(logger, emailHandler, client)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go pollHandler.StartPolling(ctx)
+	if config.Config.EnableRedditPolling {
+		go pollHandler.StartPolling(ctx)
+	}
 
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("POST /users/init", private(users.InitializeUser))
+
+	mux.HandleFunc("POST /keywords", private(keywords.CreateKeyword))
+	mux.HandleFunc("GET /keywords", private(keywords.GetKeywords))
+	mux.HandleFunc("GET /keywords/{id}", private(keywords.GetKeyword))
+	mux.HandleFunc("PUT /keywords/{id}", private(keywords.UpdateKeyword))
+	mux.HandleFunc("DELETE /keywords/{id}", private(keywords.DeleteKeyword))
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)

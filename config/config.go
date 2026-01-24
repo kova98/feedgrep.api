@@ -27,6 +27,7 @@ type AppConfig struct {
 	Keywords             []string
 	AppEnv               string // EnvDevelopment or EnvProduction
 	LogLevel             slog.Level
+	EnableRedditPolling  bool
 }
 
 var Config AppConfig
@@ -47,6 +48,7 @@ func LoadConfig() {
 	cfg.ProxyURL = loadOptional("PROXY_URL", "")
 	cfg.Keywords = strings.Split(loadRequired("KEYWORDS"), ",")
 	cfg.PollIntervalSeconds = parseIntEnv(loadOptional("POLL_INTERVAL_SECONDS", "15"))
+	cfg.EnableRedditPolling = parseBoolEnv(loadOptional("ENABLE_REDDIT_POLLING", "true"))
 
 	lvlString := loadOptional("LOG_LEVEL", "INFO")
 	var err error
@@ -73,6 +75,14 @@ func parseIntEnv(str string) int {
 		os.Exit(1)
 	}
 	return value
+}
+
+func parseBoolEnv(str string) bool {
+	lowerStr := strings.ToLower(str)
+	if lowerStr == "true" || lowerStr == "1" || lowerStr == "yes" {
+		return true
+	}
+	return false
 }
 
 func loadRequired(key string) string {

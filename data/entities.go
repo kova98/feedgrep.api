@@ -15,3 +15,12 @@ type User struct {
 	CreatedAt   time.Time `db:"created_at"`
 	UpdatedAt   time.Time `db:"updated_at"`
 }
+
+type Keyword struct {
+	ID        int       `db:"id"`
+	UserID    uuid.UUID `db:"user_id"`
+	Keyword   string    `db:"keyword"`
+	Active    bool      `db:"active"`
+	CreatedAt time.Time `db:"created_at"`
+	UpdatedAt time.Time `db:"updated_at"`
+}
