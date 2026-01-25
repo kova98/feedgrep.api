@@ -1,4 +1,4 @@
-package handlers
+package notifiers
 
 import (
 	"bytes"
@@ -9,7 +9,7 @@ import (
 	"text/template"
 )
 
-type EmailHandler struct {
+type Mailer struct {
 	logger   *slog.Logger
 	smtpHost string
 	smtpPort string
@@ -17,8 +17,8 @@ type EmailHandler struct {
 	password string
 }
 
-func NewEmailHandler(logger *slog.Logger, smtpHost, smtpPort, from, password string) *EmailHandler {
-	return &EmailHandler{
+func NewMailer(logger *slog.Logger, smtpHost, smtpPort, from, password string) *Mailer {
+	return &Mailer{
 		logger:   logger,
 		smtpHost: smtpHost,
 		smtpPort: smtpPort,
@@ -27,7 +27,7 @@ func NewEmailHandler(logger *slog.Logger, smtpHost, smtpPort, from, password str
 	}
 }
 
-func (h *EmailHandler) SendEmail(to, keyword, subreddit, author, title, body, url string, isComment bool) error {
+func (h *Mailer) SendEmail(to, keyword, subreddit, author, title, body, url string, isComment bool) error {
 	matchType := "Post"
 	if isComment {
 		matchType = "Comment"

@@ -1,7 +1,10 @@
-package handlers
+package sources
 
 import (
 	"context"
+	"crypto/sha256"
+	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,16 +13,18 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/kova98/feedgrep.api/config"
+	"github.com/kova98/feedgrep.api/data"
 	"github.com/kova98/feedgrep.api/data/repos"
 	"github.com/kova98/feedgrep.api/models"
 )
 
-type RedditHandler struct {
+type RedditPoller struct {
 	logger          *slog.Logger
 	httpClient      *http.Client
-	emailHandler    *EmailHandler
 	keywordRepo     *repos.KeywordRepo
+	matchRepo       *repos.MatchRepo
 	seenPosts       map[string]bool
 	seenComments    map[string]bool
 	subscriptions   []keywordSubscription
@@ -27,16 +32,17 @@ type RedditHandler struct {
 	keywordInterval time.Duration
 }
 type keywordSubscription struct {
+	id      int
+	userID  uuid.UUID
 	keyword string
-	email   string
 }
 
-func NewRedditHandler(logger *slog.Logger, emailHandler *EmailHandler, httpClient *http.Client, keywordRepo *repos.KeywordRepo) *RedditHandler {
-	return &RedditHandler{
+func NewRedditPoller(logger *slog.Logger, httpClient *http.Client, keywordRepo *repos.KeywordRepo, matchRepo *repos.MatchRepo) *RedditPoller {
+	return &RedditPoller{
 		logger:          logger,
 		httpClient:      httpClient,
-		emailHandler:    emailHandler,
 		keywordRepo:     keywordRepo,
+		matchRepo:       matchRepo,
 		seenPosts:       make(map[string]bool),
 		seenComments:    make(map[string]bool),
 		pollInterval:    time.Duration(config.Config.PollIntervalSeconds) * time.Second,
@@ -44,7 +50,7 @@ func NewRedditHandler(logger *slog.Logger, emailHandler *EmailHandler, httpClien
 	}
 }
 
-func (h *RedditHandler) StartPolling(ctx context.Context) {
+func (h *RedditPoller) StartPolling(ctx context.Context) {
 	h.loadKeywords()
 	h.logger.Info("starting reddit polling", "subscriptions", len(h.subscriptions), "interval", h.pollInterval.Seconds())
 
@@ -65,20 +71,20 @@ func (h *RedditHandler) StartPolling(ctx context.Context) {
 	}
 }
 
-func (h *RedditHandler) pollOnce() {
+func (h *RedditPoller) pollOnce() {
 	h.pollPosts()
 	time.Sleep(2 * time.Second) // Delay between requests to avoid rate limiting
 	h.pollComments()
 }
 
-func (h *RedditHandler) pollPosts() {
+func (h *RedditPoller) pollPosts() {
+	matches := make([]data.Match, 0, 32)
 	listing, err := h.fetchReddit("https://www.reddit.com/r/all/new/.json?limit=100")
 	if err != nil {
 		h.logger.Error("poll posts:", "error", err)
 		return
 	}
 
-	newMatches := 0
 	for _, child := range listing.Data.Children {
 		post := child.Data
 		if h.seenPosts[post.ID] {
@@ -91,23 +97,33 @@ func (h *RedditHandler) pollPosts() {
 
 		for _, sub := range h.subscriptions {
 			if strings.Contains(title, sub.keyword) || strings.Contains(body, sub.keyword) {
-				h.onMatched(post, sub.keyword, sub.email)
-				newMatches++
+				input, buildErr := h.buildMatch(post, sub, false)
+				if buildErr != nil {
+					h.logger.Error("failed to build match", "error", buildErr, "post_id", post.ID)
+					continue
+				}
+				matches = append(matches, input)
 			}
 		}
 	}
 
-	h.logger.Info("processed posts", "new_matches", newMatches, "total_seen", len(h.seenPosts))
+	if len(matches) > 0 {
+		if err := h.matchRepo.CreateMatches(matches); err != nil {
+			h.logger.Error("failed to store matches", "error", err)
+		}
+	}
+
+	h.logger.Info("processed posts", "new_matches", len(matches), "total_seen", len(h.seenPosts))
 }
 
-func (h *RedditHandler) pollComments() {
+func (h *RedditPoller) pollComments() {
+	matches := make([]data.Match, 0, 32)
 	listing, err := h.fetchReddit("https://www.reddit.com/r/all/comments/.json?limit=100")
 	if err != nil {
 		h.logger.Error("poll comments:", "error", err)
 		return
 	}
 
-	newMatches := 0
 	for _, child := range listing.Data.Children {
 		comment := child.Data
 
@@ -120,16 +136,26 @@ func (h *RedditHandler) pollComments() {
 
 		for _, sub := range h.subscriptions {
 			if strings.Contains(body, sub.keyword) {
-				h.printCommentMatch(comment, sub.keyword, sub.email)
-				newMatches++
+				input, buildErr := h.buildMatch(comment, sub, true)
+				if buildErr != nil {
+					h.logger.Error("failed to build match", "error", buildErr, "comment_id", comment.ID)
+					continue
+				}
+				matches = append(matches, input)
 			}
 		}
 	}
 
-	h.logger.Info("processed comments", "new_matches", newMatches, "total_seen", len(h.seenComments))
+	if len(matches) > 0 {
+		if err := h.matchRepo.CreateMatches(matches); err != nil {
+			h.logger.Error("failed to store matches", "error", err)
+		}
+	}
+
+	h.logger.Info("processed comments", "new_matches", len(matches), "total_seen", len(h.seenComments))
 }
 
-func (h *RedditHandler) fetchReddit(url string) (*models.RedditListing, error) {
+func (h *RedditPoller) fetchReddit(url string) (*models.RedditListing, error) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -162,7 +188,7 @@ func (h *RedditHandler) fetchReddit(url string) (*models.RedditListing, error) {
 	return &listing, nil
 }
 
-func (h *RedditHandler) loadKeywords() {
+func (h *RedditPoller) loadKeywords() {
 	keywords, err := h.keywordRepo.GetActiveKeywordsWithEmails()
 	if err != nil {
 		h.logger.Error("failed to refresh subscriptions", "error", err)
@@ -176,43 +202,51 @@ func (h *RedditHandler) loadKeywords() {
 		if kw == "" || email == "" {
 			continue
 		}
-		active = append(active, keywordSubscription{keyword: kw, email: email})
+		active = append(active, keywordSubscription{
+			id:      keyword.ID,
+			userID:  keyword.UserID,
+			keyword: kw,
+		})
 	}
 
 	h.subscriptions = active
 	h.logger.Info("refreshed subscriptions", "count", len(h.subscriptions))
 }
 
-func (h *RedditHandler) onMatched(post models.RedditPost, keyword, email string) {
-	url := fmt.Sprintf("https://reddit.com%s", post.Permalink)
-	err := h.emailHandler.SendEmail(
-		email,
-		keyword,
-		post.Subreddit,
-		post.Author,
-		post.Title,
-		post.Selftext,
-		url,
-		false, // isComment
+func (h *RedditPoller) buildMatch(item models.RedditPost, sub keywordSubscription, isComment bool) (data.Match, error) {
+	url := fmt.Sprintf("https://reddit.com%s", item.Permalink)
+	matchHash := buildMatchHash(sub.userID, sub.id, "reddit", url)
+
+	payload := repos.MatchPayload{
+		Keyword:   sub.keyword,
+		Subreddit: item.Subreddit,
+		Author:    item.Author,
+		Title:     item.Title,
+		Body:      item.Selftext,
+		IsComment: isComment,
+	}
+	if isComment {
+		payload.Title = ""
+		payload.Body = item.Body
+	}
+
+	match, err := repos.NewMatch(
+		sub.userID,
+		sql.NullInt64{Int64: int64(sub.id), Valid: true},
+		"reddit",
+		sql.NullString{String: url, Valid: url != ""},
+		matchHash,
+		payload,
 	)
 	if err != nil {
-		h.logger.Error("Failed to send email for post match", "error", err, "post_id", post.ID)
+		return data.Match{}, err
 	}
+
+	return match, nil
 }
 
-func (h *RedditHandler) printCommentMatch(comment models.RedditPost, keyword, email string) {
-	url := fmt.Sprintf("https://reddit.com%s", comment.Permalink)
-	err := h.emailHandler.SendEmail(
-		email,
-		keyword,
-		comment.Subreddit,
-		comment.Author,
-		"", // no title for comments
-		comment.Body,
-		url,
-		true, // isComment
-	)
-	if err != nil {
-		h.logger.Error("Failed to send email for comment match", "error", err, "comment_id", comment.ID)
-	}
+func buildMatchHash(userID uuid.UUID, keywordID int, source, url string) string {
+	input := fmt.Sprintf("%s:%d:%s:%s", userID.String(), keywordID, source, url)
+	sum := sha256.Sum256([]byte(input))
+	return hex.EncodeToString(sum[:])
 }

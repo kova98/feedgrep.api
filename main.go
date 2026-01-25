@@ -16,6 +16,7 @@ import (
 	"github.com/Nerzal/gocloak/v13"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/joho/godotenv/autoload"
+	"github.com/kova98/feedgrep.api/sources"
 	_ "github.com/lib/pq"
 	"golang.org/x/net/proxy"
 
@@ -59,25 +60,18 @@ func main() {
 	usersRepo := repos.NewUserRepo(db)
 	users := handlers.NewUserHandler(usersRepo)
 	keywordRepo := repos.NewKeywordRepo(db)
+	matchRepo := repos.NewMatchRepo(db)
 	keywords := handlers.NewKeywordHandler(keywordRepo)
 	keycloakClient := gocloak.NewClient(config.Config.KeycloakURL)
 	auth = handlers.NewAuthHandler(keycloakClient)
 	go auth.StartTokenTicker()
-
-	emailHandler := handlers.NewEmailHandler(
-		logger,
-		config.Config.SMTPHost,
-		config.Config.SMTPPort,
-		config.Config.SMTPFrom,
-		config.Config.SMTPPassword,
-	)
 
 	client, err := httpClient(config.Config.ProxyURL)
 	if err != nil {
 		slog.Error("failed to create http client", "error", err)
 		os.Exit(1)
 	}
-	pollHandler := handlers.NewRedditHandler(logger, emailHandler, client, keywordRepo)
+	pollHandler := sources.NewRedditPoller(logger, client, keywordRepo, matchRepo)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	if config.Config.EnableRedditPolling {

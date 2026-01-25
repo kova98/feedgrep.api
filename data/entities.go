@@ -1,6 +1,7 @@
 package data
 
 import (
+	"database/sql"
 	"time"
 
 	"github.com/google/uuid"
@@ -23,4 +24,16 @@ type Keyword struct {
 	Active    bool      `db:"active"`
 	CreatedAt time.Time `db:"created_at"`
 	UpdatedAt time.Time `db:"updated_at"`
+}
+
+type Match struct {
+	ID         int64          `db:"id"`
+	UserID     uuid.UUID      `db:"user_id"`
+	KeywordID  sql.NullInt64  `db:"keyword_id"`
+	Source     string         `db:"source"`
+	URL        sql.NullString `db:"url"`
+	MatchHash  string         `db:"match_hash"`
+	NotifiedAt sql.NullTime   `db:"notified_at"`
+	Data       []byte         `db:"data"`
+	CreatedAt  time.Time      `db:"created_at"`
 }
