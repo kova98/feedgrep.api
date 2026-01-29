@@ -1,10 +1,11 @@
 package data
 
 import (
-	"database/sql"
+	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/kova98/feedgrep.api/enums"
 )
 
 type User struct {
@@ -27,13 +28,37 @@ type Keyword struct {
 }
 
 type Match struct {
-	ID         int64          `db:"id"`
-	UserID     uuid.UUID      `db:"user_id"`
-	KeywordID  sql.NullInt64  `db:"keyword_id"`
-	Source     string         `db:"source"`
-	URL        sql.NullString `db:"url"`
-	MatchHash  string         `db:"match_hash"`
-	NotifiedAt sql.NullTime   `db:"notified_at"`
-	Data       []byte         `db:"data"`
-	CreatedAt  time.Time      `db:"created_at"`
+	ID         int             `db:"id"`
+	UserID     uuid.UUID       `db:"user_id"`
+	KeywordID  int             `db:"keyword_id"`
+	Source     enums.Source    `db:"source"`
+	Hash       string          `db:"hash"`
+	DataRaw    json.RawMessage `db:"data"`
+	NotifiedAt time.Time       `db:"notified_at"`
+	CreatedAt  time.Time       `db:"created_at"`
+}
+
+func NewMatch(userID uuid.UUID, keywordID int, source enums.Source, hash string, data any) (Match, error) {
+	raw, err := json.Marshal(data)
+	if err != nil {
+		return Match{}, err
+	}
+
+	return Match{
+		UserID:    userID,
+		KeywordID: keywordID,
+		Source:    source,
+		Hash:      hash,
+		DataRaw:   raw,
+	}, nil
+}
+
+type RedditData struct {
+	Keyword   string `json:"keyword"`
+	Subreddit string `json:"subreddit"`
+	Author    string `json:"author"`
+	Title     string `json:"title"`
+	Body      string `json:"body"`
+	Permalink string `json:"permalink"`
+	IsComment bool   `json:"is_comment"`
 }

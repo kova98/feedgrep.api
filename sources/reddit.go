@@ -3,7 +3,6 @@ package sources
 import (
 	"context"
 	"crypto/sha256"
-	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -17,6 +16,7 @@ import (
 	"github.com/kova98/feedgrep.api/config"
 	"github.com/kova98/feedgrep.api/data"
 	"github.com/kova98/feedgrep.api/data/repos"
+	"github.com/kova98/feedgrep.api/enums"
 	"github.com/kova98/feedgrep.api/models"
 )
 
@@ -97,12 +97,12 @@ func (h *RedditPoller) pollPosts() {
 
 		for _, sub := range h.subscriptions {
 			if strings.Contains(title, sub.keyword) || strings.Contains(body, sub.keyword) {
-				input, buildErr := h.buildMatch(post, sub, false)
-				if buildErr != nil {
-					h.logger.Error("failed to build match", "error", buildErr, "post_id", post.ID)
+				match, err := h.makeMatch(post, sub, false)
+				if err != nil {
+					h.logger.Error("failed to make match", "error", err, "post_id", post.ID)
 					continue
 				}
-				matches = append(matches, input)
+				matches = append(matches, match)
 			}
 		}
 	}
@@ -136,12 +136,12 @@ func (h *RedditPoller) pollComments() {
 
 		for _, sub := range h.subscriptions {
 			if strings.Contains(body, sub.keyword) {
-				input, buildErr := h.buildMatch(comment, sub, true)
-				if buildErr != nil {
-					h.logger.Error("failed to build match", "error", buildErr, "comment_id", comment.ID)
+				match, err := h.makeMatch(comment, sub, true)
+				if err != nil {
+					h.logger.Error("failed to build makeMatch", "error", err, "comment_id", comment.ID)
 					continue
 				}
-				matches = append(matches, input)
+				matches = append(matches, match)
 			}
 		}
 	}
@@ -213,30 +213,27 @@ func (h *RedditPoller) loadKeywords() {
 	h.logger.Info("refreshed subscriptions", "count", len(h.subscriptions))
 }
 
-func (h *RedditPoller) buildMatch(item models.RedditPost, sub keywordSubscription, isComment bool) (data.Match, error) {
-	url := fmt.Sprintf("https://reddit.com%s", item.Permalink)
-	matchHash := buildMatchHash(sub.userID, sub.id, "reddit", url)
-
-	payload := repos.MatchPayload{
+func (h *RedditPoller) makeMatch(item models.RedditPost, sub keywordSubscription, isComment bool) (data.Match, error) {
+	redditData := data.RedditData{
 		Keyword:   sub.keyword,
 		Subreddit: item.Subreddit,
 		Author:    item.Author,
 		Title:     item.Title,
 		Body:      item.Selftext,
 		IsComment: isComment,
+		Permalink: item.Permalink,
 	}
 	if isComment {
-		payload.Title = ""
-		payload.Body = item.Body
+		redditData.Title = ""
+		redditData.Body = item.Body
 	}
-
-	match, err := repos.NewMatch(
+	matchHash := buildMatchHash(sub.userID, sub.id, item.Permalink)
+	match, err := data.NewMatch(
 		sub.userID,
-		sql.NullInt64{Int64: int64(sub.id), Valid: true},
-		"reddit",
-		sql.NullString{String: url, Valid: url != ""},
+		sub.id,
+		enums.SourceReddit,
 		matchHash,
-		payload,
+		redditData,
 	)
 	if err != nil {
 		return data.Match{}, err
@@ -245,8 +242,8 @@ func (h *RedditPoller) buildMatch(item models.RedditPost, sub keywordSubscriptio
 	return match, nil
 }
 
-func buildMatchHash(userID uuid.UUID, keywordID int, source, url string) string {
-	input := fmt.Sprintf("%s:%d:%s:%s", userID.String(), keywordID, source, url)
+func buildMatchHash(userID uuid.UUID, keywordID int, url string) string {
+	input := fmt.Sprintf("%s:%d:%s:%s", userID.String(), keywordID, enums.SourceReddit, url)
 	sum := sha256.Sum256([]byte(input))
 	return hex.EncodeToString(sum[:])
 }

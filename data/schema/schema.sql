@@ -1,5 +1,5 @@
 
-\restrict tMgcEYrXZAV0Q47JnB7XupAthFzXxLDugv7VtrKOqXgSJj7KqIA14ni5UBvSc83
+\restrict gn1dl1Ww4df4ZatPume8VOG0uf3TPidhA85HANNAIGbhdsR14QkdJ4AnybDvqDO
 
 SELECT pg_catalog.set_config('search_path', '', false);
 
@@ -43,8 +43,7 @@ CREATE TABLE public.matches (
     user_id uuid NOT NULL,
     keyword_id integer,
     source text NOT NULL,
-    url text,
-    match_hash text NOT NULL,
+    hash text NOT NULL,
     notified_at timestamp with time zone,
     data jsonb DEFAULT '{}'::jsonb NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL
@@ -93,7 +92,13 @@ CREATE INDEX idx_keywords_user_id ON public.keywords USING btree (user_id);
 
 CREATE UNIQUE INDEX idx_keywords_user_keyword ON public.keywords USING btree (user_id, lower(keyword));
 
-CREATE UNIQUE INDEX idx_matches_match_hash ON public.matches USING btree (match_hash);
+CREATE INDEX idx_matches_created_at ON public.matches USING btree (created_at);
+
+CREATE UNIQUE INDEX idx_matches_hash ON public.matches USING btree (hash);
+
+CREATE INDEX idx_matches_source ON public.matches USING btree (source);
+
+CREATE INDEX idx_matches_user_notified_at ON public.matches USING btree (user_id, notified_at);
 
 ALTER TABLE ONLY public.keywords
     ADD CONSTRAINT keywords_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
@@ -104,5 +109,5 @@ ALTER TABLE ONLY public.matches
 ALTER TABLE ONLY public.matches
     ADD CONSTRAINT matches_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
 
-\unrestrict tMgcEYrXZAV0Q47JnB7XupAthFzXxLDugv7VtrKOqXgSJj7KqIA14ni5UBvSc83
+\unrestrict gn1dl1Ww4df4ZatPume8VOG0uf3TPidhA85HANNAIGbhdsR14QkdJ4AnybDvqDO
 
