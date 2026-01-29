@@ -17,6 +17,7 @@ import (
 	"github.com/kova98/feedgrep.api/data"
 	"github.com/kova98/feedgrep.api/data/repos"
 	"github.com/kova98/feedgrep.api/enums"
+	"github.com/kova98/feedgrep.api/matchers"
 	"github.com/kova98/feedgrep.api/models"
 )
 
@@ -35,6 +36,17 @@ type keywordSubscription struct {
 	id      int
 	userID  uuid.UUID
 	keyword string
+	filters *data.RedditFilters
+}
+
+func (s *keywordSubscription) Matches(text, subreddit string) bool {
+	if !strings.Contains(strings.ToLower(text), s.keyword) {
+		return false
+	}
+	if s.filters != nil && !matchers.MatchesSubreddit(*s.filters, subreddit) {
+		return false
+	}
+	return true
 }
 
 func NewRedditPoller(logger *slog.Logger, httpClient *http.Client, keywordRepo *repos.KeywordRepo, matchRepo *repos.MatchRepo) *RedditPoller {
@@ -92,11 +104,10 @@ func (h *RedditPoller) pollPosts() {
 		}
 		h.seenPosts[post.ID] = true
 
-		title := strings.ToLower(post.Title)
-		body := strings.ToLower(post.Selftext)
+		text := post.Title + " " + post.Selftext
 
 		for _, sub := range h.subscriptions {
-			if strings.Contains(title, sub.keyword) || strings.Contains(body, sub.keyword) {
+			if sub.Matches(text, post.Subreddit) {
 				match, err := h.makeMatch(post, sub, false)
 				if err != nil {
 					h.logger.Error("failed to make match", "error", err, "post_id", post.ID)
@@ -113,7 +124,7 @@ func (h *RedditPoller) pollPosts() {
 		}
 	}
 
-	h.logger.Info("processed posts", "new_matches", len(matches), "total_seen", len(h.seenPosts))
+	h.logger.Debug("processed posts", "new_matches", len(matches), "total_seen", len(h.seenPosts))
 }
 
 func (h *RedditPoller) pollComments() {
@@ -132,10 +143,8 @@ func (h *RedditPoller) pollComments() {
 		}
 		h.seenComments[comment.ID] = true
 
-		body := strings.ToLower(comment.Body)
-
 		for _, sub := range h.subscriptions {
-			if strings.Contains(body, sub.keyword) {
+			if sub.Matches(comment.Body, comment.Subreddit) {
 				match, err := h.makeMatch(comment, sub, true)
 				if err != nil {
 					h.logger.Error("failed to build makeMatch", "error", err, "comment_id", comment.ID)
@@ -152,7 +161,7 @@ func (h *RedditPoller) pollComments() {
 		}
 	}
 
-	h.logger.Info("processed comments", "new_matches", len(matches), "total_seen", len(h.seenComments))
+	h.logger.Debug("processed comments", "new_matches", len(matches), "total_seen", len(h.seenComments))
 }
 
 func (h *RedditPoller) fetchReddit(url string) (*models.RedditListing, error) {
@@ -202,10 +211,22 @@ func (h *RedditPoller) loadKeywords() {
 		if kw == "" || email == "" {
 			continue
 		}
+
+		var filters *data.RedditFilters
+		if len(keyword.Filters) > 0 && string(keyword.Filters) != "{}" {
+			var kf data.KeywordFilters
+			if err := json.Unmarshal(keyword.Filters, &kf); err != nil {
+				h.logger.Error("failed to parse keyword filters", "keyword_id", keyword.ID, "error", err)
+			} else {
+				filters = kf.Reddit
+			}
+		}
+
 		active = append(active, keywordSubscription{
 			id:      keyword.ID,
 			userID:  keyword.UserID,
 			keyword: kw,
+			filters: filters,
 		})
 	}
 

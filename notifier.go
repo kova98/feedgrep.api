@@ -108,7 +108,6 @@ func (n *Notifier) notifyUsers() error {
 			continue
 		}
 
-		// mark matches as notified
 		matchIDs := make([]int64, 0, len(matches))
 		for _, match := range matches {
 			matchIDs = append(matchIDs, int64(match.ID))

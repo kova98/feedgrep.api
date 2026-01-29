@@ -1,5 +1,5 @@
 
-\restrict gn1dl1Ww4df4ZatPume8VOG0uf3TPidhA85HANNAIGbhdsR14QkdJ4AnybDvqDO
+\restrict RrJauCdQmhiUhVVjwomlUCcAXSRRQ8dwkKwYQsRN8fhIGmcmq8eYULb8ndXsceh
 
 SELECT pg_catalog.set_config('search_path', '', false);
 
@@ -25,7 +25,8 @@ CREATE TABLE public.keywords (
     keyword text NOT NULL,
     active boolean DEFAULT true NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    filters jsonb DEFAULT '{}'::jsonb NOT NULL
 );
 
 CREATE SEQUENCE public.keywords_id_seq
@@ -109,5 +110,5 @@ ALTER TABLE ONLY public.matches
 ALTER TABLE ONLY public.matches
     ADD CONSTRAINT matches_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
 
-\unrestrict gn1dl1Ww4df4ZatPume8VOG0uf3TPidhA85HANNAIGbhdsR14QkdJ4AnybDvqDO
+\unrestrict RrJauCdQmhiUhVVjwomlUCcAXSRRQ8dwkKwYQsRN8fhIGmcmq8eYULb8ndXsceh
 

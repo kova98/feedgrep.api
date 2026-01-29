@@ -19,12 +19,22 @@ type User struct {
 }
 
 type Keyword struct {
-	ID        int       `db:"id"`
-	UserID    uuid.UUID `db:"user_id"`
-	Keyword   string    `db:"keyword"`
-	Active    bool      `db:"active"`
-	CreatedAt time.Time `db:"created_at"`
-	UpdatedAt time.Time `db:"updated_at"`
+	ID        int             `db:"id"`
+	UserID    uuid.UUID       `db:"user_id"`
+	Keyword   string          `db:"keyword"`
+	Active    bool            `db:"active"`
+	Filters   json.RawMessage `db:"filters"`
+	CreatedAt time.Time       `db:"created_at"`
+	UpdatedAt time.Time       `db:"updated_at"`
+}
+
+type KeywordFilters struct {
+	Reddit *RedditFilters `json:"reddit,omitempty"`
+}
+
+type RedditFilters struct {
+	Subreddits        []string `json:"subreddits,omitempty"`         // only match in these subreddits (empty = all)
+	ExcludeSubreddits []string `json:"exclude_subreddits,omitempty"` // never match in these subreddits
 }
 
 type Match struct {

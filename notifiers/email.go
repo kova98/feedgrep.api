@@ -195,6 +195,6 @@ Content-Type: text/html; charset=UTF-8
 		return err
 	}
 
-	slog.Info("Email sent", "recipient", mail.To, "subject", mail.Subject)
+	slog.Info("email sent", "recipient", mail.To, "subject", mail.Subject)
 	return nil
 }

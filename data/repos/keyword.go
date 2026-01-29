@@ -99,7 +99,7 @@ func (r *KeywordRepo) GetActiveKeywords() ([]data.Keyword, error) {
 func (r *KeywordRepo) GetActiveKeywordsWithEmails() ([]data.KeywordNotification, error) {
 	var keywords []data.KeywordNotification
 	query := `
-		SELECT k.id, k.user_id, k.keyword, u.email
+		SELECT k.id, k.user_id, k.keyword, k.filters, u.email
 		FROM keywords k
 		JOIN users u ON u.id = k.user_id
 		WHERE k.active = true
