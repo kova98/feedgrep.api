@@ -1,0 +1,21 @@
+<html>
+<body style="margin:0; padding:20px; background:#ffffff; font-family:Arial, Helvetica, sans-serif; color:#202124;">
+<div style="max-width:600px;">
+  <h2 style="margin:0 0 8px 0; font-size:18px; font-weight:normal;">{{.Total}} new mention{{if ne .Total 1}}s{{end}} of:</h2>
+  <ul style="margin:0 0 16px 0; padding-left:20px; color:#5f6368; font-size:13px;">
+    {{range .Keywords}}<li>{{.}}</li>{{end}}
+  </ul>
+  {{range .Items}}
+  <div style="padding:16px 0; border-bottom:1px solid #e0e0e0;">
+    <div style="color:#5f6368; font-size:13px; margin-bottom:8px;"><strong>r/{{.Subreddit}}</strong> · u/{{.Author}} · {{.MatchType}}</div>
+    {{if .Title}}<p style="margin:0 0 8px 0;"><strong>{{.Title}}</strong></p>{{end}}
+    {{if .Body}}<p style="margin:0 0 12px 0;">{{.Body}}</p>{{end}}
+    <a href="{{.URL}}" style="color:#1a73e8; text-decoration:none;">View on Reddit</a>
+  </div>
+  {{end}}
+  {{if .Remaining}}
+  <p style="margin:16px 0 0 0; color:#5f6368; font-size:13px;">+ {{.Remaining}} more mentions</p>
+  {{end}}
+</div>
+</body>
+</html>

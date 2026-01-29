@@ -16,6 +16,7 @@ import (
 	"github.com/Nerzal/gocloak/v13"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/joho/godotenv/autoload"
+	"github.com/kova98/feedgrep.api/notifiers"
 	"github.com/kova98/feedgrep.api/sources"
 	_ "github.com/lib/pq"
 	"golang.org/x/net/proxy"
@@ -77,6 +78,15 @@ func main() {
 	if config.Config.EnableRedditPolling {
 		go pollHandler.StartPolling(ctx)
 	}
+
+	mailer := notifiers.NewMailer(
+		config.Config.SMTPHost,
+		config.Config.SMTPPort,
+		config.Config.SMTPFrom,
+		config.Config.SMTPPassword,
+	)
+	notifier := NewNotifier(mailer, matchRepo, usersRepo)
+	go notifier.Start(ctx)
 
 	mux := http.NewServeMux()
 

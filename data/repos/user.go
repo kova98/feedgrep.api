@@ -1,12 +1,12 @@
 package repos
 
 import (
-	"github.com/kova98/feedgrep.api/data"
 	"database/sql"
 	"errors"
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/kova98/feedgrep.api/data"
 )
 
 type UserRepo struct {
@@ -52,4 +52,30 @@ func (r UserRepo) GetUserByID(id uuid.UUID) (*data.User, error) {
 	}
 
 	return &user, nil
+}
+
+func (r UserRepo) GetUsersByIDs(IDs []uuid.UUID) ([]data.User, error) {
+	if len(IDs) == 0 {
+		return []data.User{}, nil
+	}
+
+	var users []data.User
+	query, args, err := sqlx.In(`
+		SELECT id, name, email, avatar, created_at, updated_at
+		FROM users
+		WHERE id IN (?)`, IDs)
+	query = r.db.Rebind(query)
+	if err != nil {
+		return nil, fmt.Errorf("build get users by ids: %w", err)
+	}
+
+	err = r.db.Select(&users, query, args...)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return []data.User{}, nil
+		}
+		return nil, fmt.Errorf("get users by ids: %w", err)
+	}
+
+	return users, nil
 }

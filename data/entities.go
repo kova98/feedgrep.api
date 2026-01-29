@@ -34,7 +34,7 @@ type Match struct {
 	Source     enums.Source    `db:"source"`
 	Hash       string          `db:"hash"`
 	DataRaw    json.RawMessage `db:"data"`
-	NotifiedAt time.Time       `db:"notified_at"`
+	NotifiedAt *time.Time      `db:"notified_at"`
 	CreatedAt  time.Time       `db:"created_at"`
 }
 
