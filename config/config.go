@@ -24,7 +24,6 @@ type AppConfig struct {
 	SMTPPassword         string
 	ProxyURL             string
 	PollIntervalSeconds  int
-	Keywords             []string
 	AppEnv               string // EnvDevelopment or EnvProduction
 	LogLevel             slog.Level
 	EnableRedditPolling  bool
@@ -46,7 +45,6 @@ func LoadConfig() {
 	cfg.SMTPFrom = loadRequired("SMTP_FROM")
 	cfg.SMTPPassword = loadRequired("SMTP_PASSWORD")
 	cfg.ProxyURL = loadOptional("PROXY_URL", "")
-	cfg.Keywords = strings.Split(loadRequired("KEYWORDS"), ",")
 	cfg.PollIntervalSeconds = parseIntEnv(loadOptional("POLL_INTERVAL_SECONDS", "15"))
 	cfg.EnableRedditPolling = parseBoolEnv(loadOptional("ENABLE_REDDIT_POLLING", "true"))
 
