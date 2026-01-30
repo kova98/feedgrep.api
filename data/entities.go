@@ -25,6 +25,7 @@ type Keyword struct {
 	Active     bool            `db:"active"`
 	FiltersRaw json.RawMessage `db:"filters"`
 	Filters    KeywordFilters  `db:"-"`
+	HitCount   int             `db:"hit_count"`
 	CreatedAt  time.Time       `db:"created_at"`
 	UpdatedAt  time.Time       `db:"updated_at"`
 }

@@ -49,11 +49,12 @@ type RedditFilters struct {
 }
 
 type Keyword struct {
-	ID      int             `json:"id"`
-	UserID  uuid.UUID       `json:"userId"`
-	Keyword string          `json:"keyword"`
-	Active  bool            `json:"active"`
-	Filters *KeywordFilters `json:"filters,omitempty"`
+	ID       int             `json:"id"`
+	UserID   uuid.UUID       `json:"userId"`
+	Keyword  string          `json:"keyword"`
+	Active   bool            `json:"active"`
+	Filters  *KeywordFilters `json:"filters,omitempty"`
+	HitCount int             `json:"hitCount"`
 }
 
 type GetKeywordsResponse struct {
