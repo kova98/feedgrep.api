@@ -93,6 +93,9 @@ func (h *RedditPoller) pollPosts() {
 	matches := make([]data.Match, 0, 32)
 	listing, err := h.fetchReddit("https://www.reddit.com/r/all/new/.json?limit=100")
 	if err != nil {
+		if len(err.Error()) > 300 {
+			err = fmt.Errorf("%s...", err.Error()[:300])
+		}
 		h.logger.Error("poll posts:", "error", err)
 		return
 	}
