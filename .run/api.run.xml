@@ -12,10 +12,10 @@
         <ENTRY IS_ENABLED="true" PARSER="runconfig" IS_EXECUTABLE="false" />
       </ENTRIES>
     </EXTENSION>
-    <kind value="FILE" />
+    <kind value="PACKAGE" />
     <package value="github.com/kova98/feedgrep.api" />
     <directory value="$PROJECT_DIR$" />
-    <filePath value="$PROJECT_DIR$/main.go" />
+    <filePath value="$PROJECT_DIR$" />
     <method v="2" />
   </configuration>
 </component>
