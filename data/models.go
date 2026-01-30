@@ -14,3 +14,8 @@ type KeywordNotification struct {
 	FiltersRaw json.RawMessage `db:"filters"`
 	Filters    KeywordFilters  `db:"-"`
 }
+
+type MatchWithKeyword struct {
+	Match
+	Keyword string `db:"keyword"`
+}

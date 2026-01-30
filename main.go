@@ -62,7 +62,9 @@ func main() {
 	users := handlers.NewUserHandler(usersRepo)
 	keywordRepo := repos.NewKeywordRepo(db)
 	matchRepo := repos.NewMatchRepo(db)
+
 	keywords := handlers.NewKeywordHandler(keywordRepo)
+	matches := handlers.NewMatchHandler(matchRepo)
 	keycloakClient := gocloak.NewClient(config.Config.KeycloakURL)
 	auth = handlers.NewAuthHandler(keycloakClient)
 	go auth.StartTokenTicker()
@@ -97,6 +99,8 @@ func main() {
 	mux.HandleFunc("GET /keywords/{id}", private(keywords.GetKeyword))
 	mux.HandleFunc("PUT /keywords/{id}", private(keywords.UpdateKeyword))
 	mux.HandleFunc("DELETE /keywords/{id}", private(keywords.DeleteKeyword))
+
+	mux.HandleFunc("GET /matches", private(matches.GetMatches))
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)

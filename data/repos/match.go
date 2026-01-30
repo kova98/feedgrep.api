@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/kova98/feedgrep.api/data"
 )
@@ -67,4 +68,30 @@ func (r *MatchRepo) MarkNotified(ids []int64, notifiedAt time.Time) error {
 	}
 
 	return nil
+}
+
+func (r *MatchRepo) GetMatchesByUserID(userID uuid.UUID, limit, offset int) ([]data.MatchWithKeyword, int, error) {
+	var matches []data.MatchWithKeyword
+	query := `
+		SELECT m.id, m.user_id, m.keyword_id, m.source, m.hash, m.notified_at, m.data, m.created_at,
+		       k.keyword
+		FROM matches m
+		LEFT JOIN keywords k ON k.id = m.keyword_id
+		WHERE m.user_id = $1
+		ORDER BY m.created_at DESC
+		LIMIT $2 OFFSET $3`
+
+	err := r.db.Select(&matches, query, userID, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("get matches by user id: %w", err)
+	}
+
+	var total int
+	countQuery := `SELECT COUNT(*) FROM matches WHERE user_id = $1`
+	err = r.db.Get(&total, countQuery, userID)
+	if err != nil {
+		return nil, 0, fmt.Errorf("count matches: %w", err)
+	}
+
+	return matches, total, nil
 }
