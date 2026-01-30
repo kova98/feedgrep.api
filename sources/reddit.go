@@ -212,21 +212,11 @@ func (h *RedditPoller) loadKeywords() {
 			continue
 		}
 
-		var filters *data.RedditFilters
-		if len(keyword.Filters) > 0 && string(keyword.Filters) != "{}" {
-			var kf data.KeywordFilters
-			if err := json.Unmarshal(keyword.Filters, &kf); err != nil {
-				h.logger.Error("failed to parse keyword filters", "keyword_id", keyword.ID, "error", err)
-			} else {
-				filters = kf.Reddit
-			}
-		}
-
 		active = append(active, keywordSubscription{
 			id:      keyword.ID,
 			userID:  keyword.UserID,
 			keyword: kw,
-			filters: filters,
+			filters: keyword.Filters.Reddit,
 		})
 	}
 

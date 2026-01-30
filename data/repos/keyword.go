@@ -2,8 +2,10 @@ package repos
 
 import (
 	"database/sql"
-	"errors"
+	"encoding/json"
 	"fmt"
+
+	"github.com/pkg/errors"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -40,19 +42,13 @@ func (r *KeywordRepo) CreateKeyword(keyword data.Keyword) (int, error) {
 		return id, nil
 	}
 
-	query = "SELECT id FROM keywords WHERE user_id = $1 AND LOWER(keyword) = LOWER($2)"
-	err = r.db.Get(&id, query, keyword.UserID, keyword.Keyword)
-	if err != nil {
-		return 0, fmt.Errorf("get existing keyword id: %w", err)
-	}
-
 	return id, nil
 }
 
 func (r *KeywordRepo) GetKeywordsByUserID(userID uuid.UUID) ([]data.Keyword, error) {
 	var keywords []data.Keyword
 	query := `
-		SELECT id, user_id, keyword, active, created_at, updated_at
+		SELECT id, user_id, keyword, active, filters, created_at, updated_at
 		FROM keywords
 		WHERE user_id = $1
 		ORDER BY created_at DESC`
@@ -60,6 +56,12 @@ func (r *KeywordRepo) GetKeywordsByUserID(userID uuid.UUID) ([]data.Keyword, err
 	err := r.db.Select(&keywords, query, userID)
 	if err != nil {
 		return nil, fmt.Errorf("get keywords by user id: %w", err)
+	}
+
+	for i := range keywords {
+		if err := json.Unmarshal(keywords[i].FiltersRaw, &keywords[i].Filters); err != nil {
+			return nil, fmt.Errorf("unmarshal filters %d: %w", keywords[i].ID, err)
+		}
 	}
 
 	return keywords, nil
@@ -77,13 +79,17 @@ func (r *KeywordRepo) GetKeywordByID(id int, userID uuid.UUID) (*data.Keyword, e
 		return nil, fmt.Errorf("get keyword by id: %w", err)
 	}
 
+	if err := json.Unmarshal(keyword.FiltersRaw, &keyword.Filters); err != nil {
+		return nil, fmt.Errorf("unmarshal filters %d: %w", keyword.ID, err)
+	}
+
 	return &keyword, nil
 }
 
 func (r *KeywordRepo) GetActiveKeywords() ([]data.Keyword, error) {
 	var keywords []data.Keyword
 	query := `
-		SELECT id, user_id, keyword, active, created_at, updated_at
+		SELECT id, user_id, keyword, active, filters, created_at, updated_at
 		FROM keywords
 		WHERE active = true
 		ORDER BY created_at DESC`
@@ -91,6 +97,12 @@ func (r *KeywordRepo) GetActiveKeywords() ([]data.Keyword, error) {
 	err := r.db.Select(&keywords, query)
 	if err != nil {
 		return nil, fmt.Errorf("get active keywords: %w", err)
+	}
+
+	for i := range keywords {
+		if err := json.Unmarshal(keywords[i].FiltersRaw, &keywords[i].Filters); err != nil {
+			return nil, fmt.Errorf("unmarshal filters %d: %w", keywords[i].ID, err)
+		}
 	}
 
 	return keywords, nil
@@ -110,16 +122,28 @@ func (r *KeywordRepo) GetActiveKeywordsWithEmails() ([]data.KeywordNotification,
 		return nil, fmt.Errorf("get active keywords with emails: %w", err)
 	}
 
+	for i := range keywords {
+		if err := json.Unmarshal(keywords[i].FiltersRaw, &keywords[i].Filters); err != nil {
+			return nil, fmt.Errorf("unmarshal filters %d: %w", keywords[i].ID, err)
+		}
+	}
+
 	return keywords, nil
 }
 
-func (r *KeywordRepo) UpdateKeyword(keyword data.Keyword) error {
+func (r *KeywordRepo) UpdateKeyword(k data.Keyword) error {
+	filtersRaw, err := json.Marshal(k.Filters)
+	if err != nil {
+		return errors.Wrap(err, "marshal filters: ")
+	}
+	k.FiltersRaw = filtersRaw
+
 	query := `
 		UPDATE keywords
-		SET keyword = :keyword, active = :active, updated_at = now()
+		SET keyword = :keyword, active = :active, filters = :filters, updated_at = now()
 		WHERE id = :id AND user_id = :user_id`
 
-	rows, err := r.db.NamedQuery(query, keyword)
+	rows, err := r.db.NamedQuery(query, k)
 	if err != nil {
 		return fmt.Errorf("update keyword: %w", err)
 	}

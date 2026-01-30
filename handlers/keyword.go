@@ -60,11 +60,13 @@ func (h *KeywordHandler) GetKeywords(w http.ResponseWriter, r *http.Request) Res
 
 	res := &models.GetKeywordsResponse{Keywords: make([]models.Keyword, 0)}
 	for _, k := range keywords {
+		filters := models.FromDataFilters(k.Filters)
 		res.Keywords = append(res.Keywords, models.Keyword{
 			ID:      k.ID,
 			UserID:  k.UserID,
 			Keyword: k.Keyword,
 			Active:  k.Active,
+			Filters: &filters,
 		})
 	}
 
@@ -88,11 +90,13 @@ func (h *KeywordHandler) GetKeyword(w http.ResponseWriter, r *http.Request) Resu
 		return NotFound("Keyword not found.")
 	}
 
+	filters := models.FromDataFilters(keyword.Filters)
 	res := models.Keyword{
 		ID:      keyword.ID,
 		UserID:  keyword.UserID,
 		Keyword: keyword.Keyword,
 		Active:  keyword.Active,
+		Filters: &filters,
 	}
 
 	return Ok(res)
@@ -122,6 +126,9 @@ func (h *KeywordHandler) UpdateKeyword(w http.ResponseWriter, r *http.Request) R
 		UserID:  user.ID,
 		Keyword: normalized,
 		Active:  req.Active,
+	}
+	if req.Filters != nil {
+		keyword.Filters = models.ToDataFilters(*req.Filters)
 	}
 
 	if err := h.repo.UpdateKeyword(keyword); err != nil {

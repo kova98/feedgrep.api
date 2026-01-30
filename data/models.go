@@ -7,9 +7,10 @@ import (
 )
 
 type KeywordNotification struct {
-	ID      int             `db:"id"`
-	UserID  uuid.UUID       `db:"user_id"`
-	Keyword string          `db:"keyword"`
-	Email   string          `db:"email"`
-	Filters json.RawMessage `db:"filters"`
+	ID         int             `db:"id"`
+	UserID     uuid.UUID       `db:"user_id"`
+	Keyword    string          `db:"keyword"`
+	Email      string          `db:"email"`
+	FiltersRaw json.RawMessage `db:"filters"`
+	Filters    KeywordFilters  `db:"-"`
 }
