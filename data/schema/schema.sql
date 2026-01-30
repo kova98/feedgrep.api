@@ -1,5 +1,5 @@
 
-\restrict RrJauCdQmhiUhVVjwomlUCcAXSRRQ8dwkKwYQsRN8fhIGmcmq8eYULb8ndXsceh
+\restrict QcCj16v6Xw19NeKgBqu8Ja0EsjRDk4z6ZEqfiLBOvaal1Xr7hC5lpwNFv3ef6C1
 
 SELECT pg_catalog.set_config('search_path', '', false);
 
@@ -105,10 +105,10 @@ ALTER TABLE ONLY public.keywords
     ADD CONSTRAINT keywords_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
 
 ALTER TABLE ONLY public.matches
-    ADD CONSTRAINT matches_keyword_id_fkey FOREIGN KEY (keyword_id) REFERENCES public.keywords(id) ON DELETE SET NULL;
+    ADD CONSTRAINT matches_keyword_id_fkey FOREIGN KEY (keyword_id) REFERENCES public.keywords(id) ON DELETE CASCADE;
 
 ALTER TABLE ONLY public.matches
     ADD CONSTRAINT matches_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
 
-\unrestrict RrJauCdQmhiUhVVjwomlUCcAXSRRQ8dwkKwYQsRN8fhIGmcmq8eYULb8ndXsceh
+\unrestrict QcCj16v6Xw19NeKgBqu8Ja0EsjRDk4z6ZEqfiLBOvaal1Xr7hC5lpwNFv3ef6C1
 
