@@ -28,11 +28,12 @@ func (r *KeywordRepo) CreateKeyword(k data.Keyword) (int, error) {
 	k.FiltersRaw = filtersRaw
 
 	query := `
-		INSERT INTO keywords (user_id, keyword, filters)
-		VALUES (:user_id, :keyword, :filters)
-		ON CONFLICT (user_id, LOWER(keyword)) DO UPDATE 
-		    SET active = EXCLUDED.active, 
-		        filters = EXCLUDED.filters, 
+		INSERT INTO keywords (user_id, keyword, match_mode, filters)
+		VALUES (:user_id, :keyword, :match_mode, :filters)
+		ON CONFLICT (user_id, LOWER(keyword)) DO UPDATE
+		    SET active = EXCLUDED.active,
+		        match_mode = EXCLUDED.match_mode,
+		        filters = EXCLUDED.filters,
 		        updated_at = now()
 		RETURNING id`
 
@@ -57,7 +58,7 @@ func (r *KeywordRepo) CreateKeyword(k data.Keyword) (int, error) {
 func (r *KeywordRepo) GetKeywordsByUserID(userID uuid.UUID) ([]data.Keyword, error) {
 	var keywords []data.Keyword
 	query := `
-		SELECT k.id, k.user_id, k.keyword, k.active, k.filters, k.created_at, k.updated_at,
+		SELECT k.id, k.user_id, k.keyword, k.active, k.match_mode, k.filters, k.created_at, k.updated_at,
 		       COUNT(m.id) AS hit_count
 		FROM keywords k
 		LEFT JOIN matches m ON m.keyword_id = k.id
@@ -101,7 +102,7 @@ func (r *KeywordRepo) GetKeywordByID(id int, userID uuid.UUID) (*data.Keyword, e
 func (r *KeywordRepo) GetActiveKeywords() ([]data.Keyword, error) {
 	var keywords []data.Keyword
 	query := `
-		SELECT id, user_id, keyword, active, filters, created_at, updated_at
+		SELECT id, user_id, keyword, active, match_mode, filters, created_at, updated_at
 		FROM keywords
 		WHERE active = true
 		ORDER BY created_at DESC`
@@ -123,7 +124,7 @@ func (r *KeywordRepo) GetActiveKeywords() ([]data.Keyword, error) {
 func (r *KeywordRepo) GetActiveKeywordsWithEmails() ([]data.KeywordNotification, error) {
 	var keywords []data.KeywordNotification
 	query := `
-		SELECT k.id, k.user_id, k.keyword, k.filters, u.email
+		SELECT k.id, k.user_id, k.keyword, k.match_mode, k.filters, u.email
 		FROM keywords k
 		JOIN users u ON u.id = k.user_id
 		WHERE k.active = true
@@ -152,7 +153,7 @@ func (r *KeywordRepo) UpdateKeyword(k data.Keyword) error {
 
 	query := `
 		UPDATE keywords
-		SET keyword = :keyword, active = :active, filters = :filters, updated_at = now()
+		SET keyword = :keyword, active = :active, match_mode = :match_mode, filters = :filters, updated_at = now()
 		WHERE id = :id AND user_id = :user_id`
 
 	rows, err := r.db.NamedQuery(query, k)

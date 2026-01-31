@@ -3,17 +3,20 @@ package models
 import (
 	"github.com/google/uuid"
 	"github.com/kova98/feedgrep.api/data"
+	"github.com/kova98/feedgrep.api/enums"
 )
 
 type CreateKeywordRequest struct {
-	Keyword string          `json:"keyword"`
-	Filters *KeywordFilters `json:"filters,omitempty"`
+	Keyword   string          `json:"keyword"`
+	MatchMode enums.MatchMode `json:"matchMode,omitempty"`
+	Filters   *KeywordFilters `json:"filters,omitempty"`
 }
 
 type UpdateKeywordRequest struct {
-	Keyword string          `json:"keyword"`
-	Active  bool            `json:"active"`
-	Filters *KeywordFilters `json:"filters,omitempty"`
+	Keyword   string          `json:"keyword"`
+	Active    bool            `json:"active"`
+	MatchMode enums.MatchMode `json:"matchMode,omitempty"`
+	Filters   *KeywordFilters `json:"filters,omitempty"`
 }
 
 type KeywordFilters struct {
@@ -50,12 +53,13 @@ type RedditFilters struct {
 }
 
 type Keyword struct {
-	ID       int             `json:"id"`
-	UserID   uuid.UUID       `json:"userId"`
-	Keyword  string          `json:"keyword"`
-	Active   bool            `json:"active"`
-	Filters  *KeywordFilters `json:"filters,omitempty"`
-	HitCount int             `json:"hitCount"`
+	ID        int             `json:"id"`
+	UserID    uuid.UUID       `json:"userId"`
+	Keyword   string          `json:"keyword"`
+	Active    bool            `json:"active"`
+	MatchMode enums.MatchMode `json:"matchMode"`
+	Filters   *KeywordFilters `json:"filters,omitempty"`
+	HitCount  int             `json:"hitCount"`
 }
 
 type GetKeywordsResponse struct {

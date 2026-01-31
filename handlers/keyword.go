@@ -8,6 +8,7 @@ import (
 
 	"github.com/kova98/feedgrep.api/data"
 	"github.com/kova98/feedgrep.api/data/repos"
+	"github.com/kova98/feedgrep.api/enums"
 	"github.com/kova98/feedgrep.api/models"
 )
 
@@ -36,10 +37,15 @@ func (h *KeywordHandler) CreateKeyword(w http.ResponseWriter, r *http.Request) R
 		return BadRequest("Keyword must be between 4 and 50 characters.")
 	}
 
+	if req.MatchMode == enums.MatchModeInvalid {
+		return BadRequest("Invalid match mode.")
+	}
+
 	keyword := data.Keyword{
-		UserID:  user.ID,
-		Keyword: normalized,
-		Active:  true,
+		UserID:    user.ID,
+		Keyword:   normalized,
+		MatchMode: req.MatchMode,
+		Active:    true,
 	}
 	if req.Filters != nil {
 		keyword.Filters = models.ToDataFilters(*req.Filters)
@@ -65,12 +71,13 @@ func (h *KeywordHandler) GetKeywords(w http.ResponseWriter, r *http.Request) Res
 	for _, k := range keywords {
 		filters := models.FromDataFilters(k.Filters)
 		res.Keywords = append(res.Keywords, models.Keyword{
-			ID:       k.ID,
-			UserID:   k.UserID,
-			Keyword:  k.Keyword,
-			Active:   k.Active,
-			Filters:  &filters,
-			HitCount: k.HitCount,
+			ID:        k.ID,
+			UserID:    k.UserID,
+			Keyword:   k.Keyword,
+			Active:    k.Active,
+			MatchMode: k.MatchMode,
+			Filters:   &filters,
+			HitCount:  k.HitCount,
 		})
 	}
 
@@ -96,11 +103,12 @@ func (h *KeywordHandler) GetKeyword(w http.ResponseWriter, r *http.Request) Resu
 
 	filters := models.FromDataFilters(keyword.Filters)
 	res := models.Keyword{
-		ID:      keyword.ID,
-		UserID:  keyword.UserID,
-		Keyword: keyword.Keyword,
-		Active:  keyword.Active,
-		Filters: &filters,
+		ID:        keyword.ID,
+		UserID:    keyword.UserID,
+		Keyword:   keyword.Keyword,
+		Active:    keyword.Active,
+		MatchMode: keyword.MatchMode,
+		Filters:   &filters,
 	}
 
 	return Ok(res)
@@ -125,11 +133,20 @@ func (h *KeywordHandler) UpdateKeyword(w http.ResponseWriter, r *http.Request) R
 		return BadRequest("Keyword is required.")
 	}
 
+	if len(normalized) < 4 || len(normalized) > 50 {
+		return BadRequest("Keyword must be between 4 and 50 characters.")
+	}
+
+	if req.MatchMode == enums.MatchModeInvalid {
+		return BadRequest("Invalid match mode.")
+	}
+
 	keyword := data.Keyword{
-		ID:      id,
-		UserID:  user.ID,
-		Keyword: normalized,
-		Active:  req.Active,
+		ID:        id,
+		UserID:    user.ID,
+		Keyword:   normalized,
+		MatchMode: req.MatchMode,
+		Active:    req.Active,
 	}
 	if req.Filters != nil {
 		keyword.Filters = models.ToDataFilters(*req.Filters)

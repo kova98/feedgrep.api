@@ -13,3 +13,6 @@ schema:
 	pg_dump $(DB_URL) --schema-only | \
 	grep -v -e '^--' -e '^COMMENT ON' -e '^REVOKE' -e '^GRANT' -e '^SET' -e 'ALTER DEFAULT PRIVILEGES' -e 'OWNER TO' | \
 	cat -s > ./data/schema/schema.sql
+	
+test: 
+	go test ./...

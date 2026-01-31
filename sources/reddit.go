@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -33,20 +34,39 @@ type RedditPoller struct {
 	keywordInterval time.Duration
 }
 type keywordSubscription struct {
-	id      int
-	userID  uuid.UUID
-	keyword string
-	filters *data.RedditFilters
+	id        int
+	userID    uuid.UUID
+	keyword   string
+	matchMode enums.MatchMode
+	filters   *data.RedditFilters
 }
 
-func (s *keywordSubscription) Matches(text, subreddit string) bool {
-	if !strings.Contains(strings.ToLower(text), s.keyword) {
-		return false
+func (s *keywordSubscription) Matches(text, subreddit string) (bool, error) {
+	textLower := strings.ToLower(text)
+
+	if s.matchMode == enums.MatchModeInvalid {
+		return false, errors.New(string("invalid match mode: " + s.matchMode))
 	}
-	if s.filters != nil && !matchers.MatchesSubreddit(*s.filters, subreddit) {
-		return false
+
+	if s.matchMode == enums.MatchModeExact && !matchers.MatchesWholeWord(textLower, s.keyword) {
+		return false, nil
 	}
-	return true
+
+	if s.matchMode == enums.MatchModeBroad && !matchers.MatchesPartially(textLower, s.keyword) {
+		return false, nil
+	}
+
+	if s.filters != nil {
+		match, err := matchers.MatchesSubreddit(*s.filters, subreddit)
+		if err != nil {
+			return false, err
+		}
+		if !match {
+			return false, nil
+		}
+	}
+
+	return true, nil
 }
 
 func NewRedditPoller(logger *slog.Logger, httpClient *http.Client, keywordRepo *repos.KeywordRepo, matchRepo *repos.MatchRepo) *RedditPoller {
@@ -110,14 +130,21 @@ func (h *RedditPoller) pollPosts() {
 		text := post.Title + " " + post.Selftext
 
 		for _, sub := range h.subscriptions {
-			if sub.Matches(text, post.Subreddit) {
-				match, err := h.makeMatch(post, sub, false)
-				if err != nil {
-					h.logger.Error("failed to make match", "error", err, "post_id", post.ID)
-					continue
-				}
-				matches = append(matches, match)
+			subMatches, err := sub.Matches(text, post.Subreddit)
+			if err != nil {
+				h.logger.Error("failed to check match", "error", err, "post_id", post.ID)
+				continue
 			}
+			if !subMatches {
+				continue
+			}
+
+			match, err := h.makeMatch(post, sub, false)
+			if err != nil {
+				h.logger.Error("failed to make match", "error", err, "post_id", post.ID)
+				continue
+			}
+			matches = append(matches, match)
 		}
 	}
 
@@ -150,14 +177,20 @@ func (h *RedditPoller) pollComments() {
 		h.seenComments[comment.ID] = true
 
 		for _, sub := range h.subscriptions {
-			if sub.Matches(comment.Body, comment.Subreddit) {
-				match, err := h.makeMatch(comment, sub, true)
-				if err != nil {
-					h.logger.Error("failed to build makeMatch", "error", err, "comment_id", comment.ID)
-					continue
-				}
-				matches = append(matches, match)
+			subMatches, err := sub.Matches(comment.Body, comment.Subreddit)
+			if err != nil {
+				h.logger.Error("failed to check match", "error", err, "comment_id", comment.ID)
+				continue
 			}
+			if !subMatches {
+				continue
+			}
+			match, err := h.makeMatch(comment, sub, true)
+			if err != nil {
+				h.logger.Error("failed to make match", "error", err, "comment_id", comment.ID)
+				continue
+			}
+			matches = append(matches, match)
 		}
 	}
 
@@ -219,10 +252,11 @@ func (h *RedditPoller) loadKeywords() {
 		}
 
 		active = append(active, keywordSubscription{
-			id:      keyword.ID,
-			userID:  keyword.UserID,
-			keyword: kw,
-			filters: keyword.Filters.Reddit,
+			id:        keyword.ID,
+			userID:    keyword.UserID,
+			keyword:   kw,
+			matchMode: keyword.MatchMode,
+			filters:   keyword.Filters.Reddit,
 		})
 	}
 

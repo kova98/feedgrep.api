@@ -23,6 +23,7 @@ type Keyword struct {
 	UserID     uuid.UUID       `db:"user_id"`
 	Keyword    string          `db:"keyword"`
 	Active     bool            `db:"active"`
+	MatchMode  enums.MatchMode `db:"match_mode"`
 	FiltersRaw json.RawMessage `db:"filters"`
 	Filters    KeywordFilters  `db:"-"`
 	HitCount   int             `db:"hit_count"`
