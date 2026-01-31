@@ -41,6 +41,9 @@ func (h *KeywordHandler) CreateKeyword(w http.ResponseWriter, r *http.Request) R
 		Keyword: normalized,
 		Active:  true,
 	}
+	if req.Filters != nil {
+		keyword.Filters = models.ToDataFilters(*req.Filters)
+	}
 
 	id, err := h.repo.CreateKeyword(keyword)
 	if err != nil {

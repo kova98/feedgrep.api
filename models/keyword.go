@@ -6,7 +6,8 @@ import (
 )
 
 type CreateKeywordRequest struct {
-	Keyword string `json:"keyword"`
+	Keyword string          `json:"keyword"`
+	Filters *KeywordFilters `json:"filters,omitempty"`
 }
 
 type UpdateKeywordRequest struct {

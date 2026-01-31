@@ -20,14 +20,23 @@ func NewKeywordRepo(db *sqlx.DB) *KeywordRepo {
 	return &KeywordRepo{db}
 }
 
-func (r *KeywordRepo) CreateKeyword(keyword data.Keyword) (int, error) {
+func (r *KeywordRepo) CreateKeyword(k data.Keyword) (int, error) {
+	filtersRaw, err := json.Marshal(k.Filters)
+	if err != nil {
+		return 0, errors.Wrap(err, "marshal filters: ")
+	}
+	k.FiltersRaw = filtersRaw
+
 	query := `
-		INSERT INTO keywords (user_id, keyword)
-		VALUES (:user_id, :keyword)
-		ON CONFLICT (user_id, LOWER(keyword)) DO NOTHING
+		INSERT INTO keywords (user_id, keyword, filters)
+		VALUES (:user_id, :keyword, :filters)
+		ON CONFLICT (user_id, LOWER(keyword)) DO UPDATE 
+		    SET active = EXCLUDED.active, 
+		        filters = EXCLUDED.filters, 
+		        updated_at = now()
 		RETURNING id`
 
-	rows, err := r.db.NamedQuery(query, keyword)
+	rows, err := r.db.NamedQuery(query, k)
 	if err != nil {
 		return 0, fmt.Errorf("create keyword: %w", err)
 	}
