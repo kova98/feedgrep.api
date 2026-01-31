@@ -134,6 +134,9 @@ func (h *RedditPoller) pollComments() {
 	matches := make([]data.Match, 0, 32)
 	listing, err := h.fetchReddit("https://www.reddit.com/r/all/comments/.json?limit=100")
 	if err != nil {
+		if len(err.Error()) > 300 {
+			err = fmt.Errorf("%s...", err.Error()[:300])
+		}
 		h.logger.Error("poll comments:", "error", err)
 		return
 	}
