@@ -90,6 +90,8 @@ func main() {
 	notifier := NewNotifier(mailer, matchRepo, usersRepo)
 	go notifier.Start(ctx)
 
+	feedback := handlers.NewFeedbackHandler(mailer)
+
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("POST /users/init", private(users.InitializeUser))
@@ -101,6 +103,8 @@ func main() {
 	mux.HandleFunc("DELETE /keywords/{id}", private(keywords.DeleteKeyword))
 
 	mux.HandleFunc("GET /matches", private(matches.GetMatches))
+
+	mux.HandleFunc("POST /feedback", private(feedback.SubmitFeedback))
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
