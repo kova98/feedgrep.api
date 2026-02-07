@@ -13,20 +13,21 @@ const (
 )
 
 type AppConfig struct {
-	KeycloakClientID     string
-	KeycloakClientSecret string
-	KeycloakRealm        string
-	KeycloakURL          string
-	PostgresURL          string
-	SMTPHost             string
-	SMTPPort             string
-	SMTPFrom             string
-	SMTPPassword         string
-	ProxyURL             string
-	PollIntervalSeconds  int
-	AppEnv               string // EnvDevelopment or EnvProduction
-	LogLevel             slog.Level
-	EnableRedditPolling  bool
+	KeycloakClientID      string
+	KeycloakClientSecret  string
+	KeycloakRealm         string
+	KeycloakURL           string
+	PostgresURL           string
+	SMTPHost              string
+	SMTPPort              string
+	SMTPFrom              string
+	SMTPPassword          string
+	ProxyURLs             []string
+	PostPollIntervalMs    int
+	CommentPollIntervalMs int
+	AppEnv                string // EnvDevelopment or EnvProduction
+	LogLevel              slog.Level
+	EnableRedditPolling   bool
 }
 
 var Config AppConfig
@@ -44,8 +45,9 @@ func LoadConfig() {
 	cfg.SMTPPort = loadRequired("SMTP_PORT")
 	cfg.SMTPFrom = loadRequired("SMTP_FROM")
 	cfg.SMTPPassword = loadRequired("SMTP_PASSWORD")
-	cfg.ProxyURL = loadOptional("PROXY_URL", "")
-	cfg.PollIntervalSeconds = parseIntEnv(loadOptional("POLL_INTERVAL_SECONDS", "15"))
+	cfg.ProxyURLs = parseProxyURLs(loadOptional("PROXY_URLS", ""))
+	cfg.PostPollIntervalMs = parseIntEnv(loadRequired("POST_POLL_INTERVAL_MS"))
+	cfg.CommentPollIntervalMs = parseIntEnv(loadRequired("COMMENT_POLL_INTERVAL_MS"))
 	cfg.EnableRedditPolling = parseBoolEnv(loadOptional("ENABLE_REDDIT_POLLING", "true"))
 
 	lvlString := loadOptional("LOG_LEVEL", "INFO")
@@ -81,6 +83,21 @@ func parseBoolEnv(str string) bool {
 		return true
 	}
 	return false
+}
+
+func parseProxyURLs(str string) []string {
+	if str == "" {
+		return nil
+	}
+	parts := strings.Split(str, ",")
+	urls := make([]string, 0, len(parts))
+	for _, p := range parts {
+		trimmed := strings.TrimSpace(p)
+		if trimmed != "" {
+			urls = append(urls, trimmed)
+		}
+	}
+	return urls
 }
 
 func loadRequired(key string) string {

@@ -2,6 +2,8 @@ package models
 
 type RedditListing struct {
 	Data struct {
+		After    string `json:"after"`
+		Before   string `json:"before"`
 		Children []struct {
 			Data RedditPost `json:"data"`
 		} `json:"children"`
@@ -10,6 +12,7 @@ type RedditListing struct {
 
 type RedditPost struct {
 	ID         string  `json:"id"`
+	Name       string  `json:"name"` // fullname, e.g. "t3_abc123" or "t1_xyz789"
 	Title      string  `json:"title"`
 	Selftext   string  `json:"selftext"`
 	Body       string  `json:"body"`
