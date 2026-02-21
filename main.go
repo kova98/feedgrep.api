@@ -72,10 +72,14 @@ func main() {
 		os.Exit(1)
 	}
 	pollHandler := sources.NewRedditPoller(logger, proxyPool, keywordRepo, matchRepo)
+	arcticShiftPoller := sources.NewArcticShiftPoller(logger, keywordRepo, matchRepo)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	if config.Config.EnableRedditPolling {
 		go pollHandler.StartPolling(ctx)
+	}
+	if config.Config.EnableArcticShift {
+		go arcticShiftPoller.StartPolling(ctx)
 	}
 
 	mailer := notifiers.NewMailer(

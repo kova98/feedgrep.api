@@ -28,6 +28,7 @@ type AppConfig struct {
 	AppEnv                string // EnvDevelopment or EnvProduction
 	LogLevel              slog.Level
 	EnableRedditPolling   bool
+	EnableArcticShift     bool
 }
 
 var Config AppConfig
@@ -49,6 +50,7 @@ func LoadConfig() {
 	cfg.PostPollIntervalMs = parseIntEnv(loadRequired("POST_POLL_INTERVAL_MS"))
 	cfg.CommentPollIntervalMs = parseIntEnv(loadRequired("COMMENT_POLL_INTERVAL_MS"))
 	cfg.EnableRedditPolling = parseBoolEnv(loadOptional("ENABLE_REDDIT_POLLING", "true"))
+	cfg.EnableArcticShift = parseBoolEnv(loadOptional("ENABLE_ARCTICSHIFT_POLLING", "true"))
 
 	lvlString := loadOptional("LOG_LEVEL", "INFO")
 	var err error

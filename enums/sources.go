@@ -3,5 +3,6 @@ package enums
 type Source string
 
 const (
-	SourceReddit Source = "reddit"
+	SourceReddit      Source = "reddit"
+	SourceArcticShift Source = "arcticshift"
 )

@@ -467,7 +467,7 @@ func (h *RedditPoller) makeMatch(item models.RedditPost, sub keywordSubscription
 		redditData.Title = ""
 		redditData.Body = item.Body
 	}
-	matchHash := buildMatchHash(sub.userID, sub.id, item.Permalink)
+	matchHash := buildMatchHash(sub.userID, sub.id, enums.SourceReddit, item.Permalink)
 	match, err := data.NewMatch(
 		sub.userID,
 		sub.id,
@@ -482,8 +482,8 @@ func (h *RedditPoller) makeMatch(item models.RedditPost, sub keywordSubscription
 	return match, nil
 }
 
-func buildMatchHash(userID uuid.UUID, keywordID int, url string) string {
-	input := fmt.Sprintf("%s:%d:%s:%s", userID.String(), keywordID, enums.SourceReddit, url)
+func buildMatchHash(userID uuid.UUID, keywordID int, source enums.Source, url string) string {
+	input := fmt.Sprintf("%s:%d:%s:%s", userID.String(), keywordID, source, url)
 	sum := sha256.Sum256([]byte(input))
 	return hex.EncodeToString(sum[:])
 }
