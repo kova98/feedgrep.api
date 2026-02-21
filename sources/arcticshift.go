@@ -2,7 +2,10 @@ package sources
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -10,9 +13,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/kova98/feedgrep.api/data"
 	"github.com/kova98/feedgrep.api/data/repos"
 	"github.com/kova98/feedgrep.api/enums"
+	"github.com/kova98/feedgrep.api/matchers"
 	"github.com/kova98/feedgrep.api/models"
 )
 
@@ -372,4 +377,54 @@ func (h *ArcticShiftPoller) loadKeywords() {
 
 	h.subscriptions = active
 	h.logger.Info("refreshed subscriptions", "count", len(h.subscriptions))
+}
+
+func buildMatchHash(userID uuid.UUID, keywordID int, source enums.Source, url string) string {
+	input := fmt.Sprintf("%s:%d:%s:%s", userID.String(), keywordID, source, url)
+	sum := sha256.Sum256([]byte(input))
+	return hex.EncodeToString(sum[:])
+}
+
+func truncateError(err error) error {
+	msg := err.Error()
+	if len(msg) > 300 {
+		return fmt.Errorf("%s...", msg[:300])
+	}
+	return err
+}
+
+type keywordSubscription struct {
+	id        int
+	userID    uuid.UUID
+	keyword   string
+	matchMode enums.MatchMode
+	filters   *data.RedditFilters
+}
+
+func (s *keywordSubscription) Matches(text, subreddit string) (bool, error) {
+	textLower := strings.ToLower(text)
+
+	if s.matchMode == enums.MatchModeInvalid {
+		return false, errors.New(string("invalid match mode: " + s.matchMode))
+	}
+
+	if s.matchMode == enums.MatchModeExact && !matchers.MatchesWholeWord(textLower, s.keyword) {
+		return false, nil
+	}
+
+	if s.matchMode == enums.MatchModeBroad && !matchers.MatchesPartially(textLower, s.keyword) {
+		return false, nil
+	}
+
+	if s.filters != nil {
+		match, err := matchers.MatchesSubreddit(*s.filters, subreddit)
+		if err != nil {
+			return false, err
+		}
+		if !match {
+			return false, nil
+		}
+	}
+
+	return true, nil
 }
