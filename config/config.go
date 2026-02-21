@@ -22,6 +22,7 @@ type AppConfig struct {
 	SMTPPort             string
 	SMTPFrom             string
 	SMTPPassword         string
+	PostPollIntervalMs   int
 	AppEnv               string // EnvDevelopment or EnvProduction
 	LogLevel             slog.Level
 	EnableArcticShift    bool
@@ -42,6 +43,7 @@ func LoadConfig() {
 	cfg.SMTPPort = loadRequired("SMTP_PORT")
 	cfg.SMTPFrom = loadRequired("SMTP_FROM")
 	cfg.SMTPPassword = loadRequired("SMTP_PASSWORD")
+	cfg.PostPollIntervalMs = parseIntEnv(loadOptional("POST_POLL_INTERVAL_MS", "3000"))
 	cfg.EnableArcticShift = parseBoolEnv(loadOptional("ENABLE_ARCTICSHIFT_POLLING", "true"))
 
 	lvlString := loadOptional("LOG_LEVEL", "INFO")

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/kova98/feedgrep.api/config"
 	"github.com/kova98/feedgrep.api/data"
 	"github.com/kova98/feedgrep.api/data/repos"
 	"github.com/kova98/feedgrep.api/enums"
@@ -23,7 +24,6 @@ import (
 
 const (
 	arcticShiftBaseURL        = "https://arctic-shift.photon-reddit.com/api"
-	arcticShiftPollInterval   = 3 * time.Second
 	arcticShiftPostsFields    = "id,subreddit,author,title,selftext,created_utc"
 	arcticShiftCommentsFields = "id,subreddit,author,body,link_id,parent_id,created_utc"
 )
@@ -47,13 +47,15 @@ type ArcticShiftPoller struct {
 }
 
 func NewArcticShiftPoller(logger *slog.Logger, keywordRepo *repos.KeywordRepo, matchRepo *repos.MatchRepo) *ArcticShiftPoller {
+	interval := time.Duration(config.Config.PostPollIntervalMs) * time.Millisecond
+
 	return &ArcticShiftPoller{
 		logger:              logger,
 		keywordRepo:         keywordRepo,
 		matchRepo:           matchRepo,
 		client:              &http.Client{Timeout: 15 * time.Second},
-		postPollInterval:    arcticShiftPollInterval,
-		commentPollInterval: arcticShiftPollInterval,
+		postPollInterval:    interval,
+		commentPollInterval: interval,
 		windowStart:         time.Now(),
 	}
 }
