@@ -13,11 +13,15 @@ import (
 )
 
 type KeywordHandler struct {
-	repo *repos.KeywordRepo
+	repo      *repos.KeywordRepo
+	matchRepo *repos.MatchRepo
 }
 
-func NewKeywordHandler(repo *repos.KeywordRepo) *KeywordHandler {
-	return &KeywordHandler{repo}
+func NewKeywordHandler(repo *repos.KeywordRepo, matchRepo *repos.MatchRepo) *KeywordHandler {
+	return &KeywordHandler{
+		repo:      repo,
+		matchRepo: matchRepo,
+	}
 }
 
 func (h *KeywordHandler) CreateKeyword(w http.ResponseWriter, r *http.Request) Result {
@@ -174,4 +178,40 @@ func (h *KeywordHandler) DeleteKeyword(w http.ResponseWriter, r *http.Request) R
 	}
 
 	return Ok(nil)
+}
+
+func (h *KeywordHandler) GetKeywordMatchedSubreddits(w http.ResponseWriter, r *http.Request) Result {
+	user := r.Context().Value("user").(data.User)
+
+	idStr := r.PathValue("id")
+	keywordID, err := strconv.Atoi(idStr)
+	if err != nil {
+		return BadRequest("Invalid keyword ID.")
+	}
+
+	keyword, err := h.repo.GetKeywordByID(keywordID, user.ID)
+	if err != nil {
+		return InternalError(err, "get keyword: ")
+	}
+	if keyword == nil {
+		return NotFound("Keyword not found.")
+	}
+
+	matches, err := h.matchRepo.GetMatchedSubredditsByKeyword(user.ID, keywordID, 50)
+	if err != nil {
+		return InternalError(err, "get keyword matched subreddits: ")
+	}
+
+	out := models.GetKeywordMatchedSubredditsResponse{
+		Matches: make([]models.MatchedSubreddit, 0, len(matches)),
+	}
+	for _, m := range matches {
+		out.Matches = append(out.Matches, models.MatchedSubreddit{
+			Subreddit:     m.Subreddit,
+			LastMatchedAt: m.LastMatchedAt,
+			MatchCount:    m.MatchCount,
+		})
+	}
+
+	return Ok(out)
 }

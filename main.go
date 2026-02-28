@@ -60,7 +60,7 @@ func main() {
 	keywordRepo := repos.NewKeywordRepo(db)
 	matchRepo := repos.NewMatchRepo(db)
 
-	keywords := handlers.NewKeywordHandler(keywordRepo)
+	keywords := handlers.NewKeywordHandler(keywordRepo, matchRepo)
 	matches := handlers.NewMatchHandler(matchRepo)
 	keycloakClient := gocloak.NewClient(config.Config.KeycloakURL)
 	auth = handlers.NewAuthHandler(keycloakClient)
@@ -78,6 +78,7 @@ func main() {
 		config.Config.SMTPPort,
 		config.Config.SMTPFrom,
 		config.Config.SMTPPassword,
+		config.Config.AppBaseURL,
 	)
 	notifier := NewNotifier(mailer, matchRepo, usersRepo)
 	go notifier.Start(ctx)
@@ -93,6 +94,7 @@ func main() {
 	mux.HandleFunc("GET /keywords/{id}", private(keywords.GetKeyword))
 	mux.HandleFunc("PUT /keywords/{id}", private(keywords.UpdateKeyword))
 	mux.HandleFunc("DELETE /keywords/{id}", private(keywords.DeleteKeyword))
+	mux.HandleFunc("GET /keywords/{id}/matched-subreddits", private(keywords.GetKeywordMatchedSubreddits))
 
 	mux.HandleFunc("GET /matches", private(matches.GetMatches))
 

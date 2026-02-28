@@ -2,6 +2,7 @@ package data
 
 import (
 	"encoding/json"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/kova98/feedgrep.api/enums"
@@ -20,4 +21,10 @@ type KeywordNotification struct {
 type MatchWithKeyword struct {
 	Match
 	Keyword string `db:"keyword"`
+}
+
+type MatchedSubredditSummary struct {
+	Subreddit     string    `db:"subreddit"`
+	LastMatchedAt time.Time `db:"last_matched_at"`
+	MatchCount    int       `db:"match_count"`
 }

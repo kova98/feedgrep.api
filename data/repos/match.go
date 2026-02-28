@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/kova98/feedgrep.api/data"
+	"github.com/kova98/feedgrep.api/enums"
 )
 
 type MatchRepo struct {
@@ -94,4 +95,26 @@ func (r *MatchRepo) GetMatchesByUserID(userID uuid.UUID, limit, offset int) ([]d
 	}
 
 	return matches, total, nil
+}
+
+func (r *MatchRepo) GetMatchedSubredditsByKeyword(userID uuid.UUID, keywordID, limit int) ([]data.MatchedSubredditSummary, error) {
+	var rows []data.MatchedSubredditSummary
+	query := `
+		SELECT LOWER(m.data->>'subreddit') AS subreddit,
+		       MAX(m.created_at) AS last_matched_at,
+		       COUNT(*) AS match_count
+		FROM matches m
+		WHERE m.user_id = $1
+		  AND m.keyword_id = $2
+		  AND m.source = $3
+		  AND m.data->>'subreddit' != ''
+		GROUP BY LOWER(m.data->>'subreddit')
+		ORDER BY MAX(m.created_at) DESC
+		LIMIT $4`
+
+	if err := r.db.Select(&rows, query, userID, keywordID, enums.SourceArcticShift, limit); err != nil {
+		return nil, fmt.Errorf("get matched subreddits by keyword: %w", err)
+	}
+
+	return rows, nil
 }

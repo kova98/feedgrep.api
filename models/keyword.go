@@ -1,6 +1,8 @@
 package models
 
 import (
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/kova98/feedgrep.api/data"
 	"github.com/kova98/feedgrep.api/enums"
@@ -64,4 +66,14 @@ type Keyword struct {
 
 type GetKeywordsResponse struct {
 	Keywords []Keyword `json:"keywords"`
+}
+
+type MatchedSubreddit struct {
+	Subreddit     string    `json:"subreddit"`
+	LastMatchedAt time.Time `json:"lastMatchedAt"`
+	MatchCount    int       `json:"matchCount"`
+}
+
+type GetKeywordMatchedSubredditsResponse struct {
+	Matches []MatchedSubreddit `json:"matches"`
 }
