@@ -7,10 +7,11 @@
   </ul>
   {{range .Items}}
   <div style="padding:16px 0; border-bottom:1px solid #e0e0e0;">
-    <div style="color:#5f6368; font-size:13px; margin-bottom:8px;"><strong>r/{{.Subreddit}}</strong> · u/{{.Author}} · {{.MatchType}}</div>
+    <div style="color:#5f6368; font-size:13px; margin-bottom:8px;"><strong>{{.Keyword}}</strong> in <strong>r/{{.Subreddit}}</strong> · u/{{.Author}} · {{.MatchType}}</div>
     {{if .Title}}<p style="margin:0 0 8px 0;"><strong>{{.Title}}</strong></p>{{end}}
     {{if .Body}}<p style="margin:0 0 12px 0;">{{.Body}}</p>{{end}}
-    <a href="{{.URL}}" style="color:#1a73e8; text-decoration:none;">View on Reddit</a>
+    <a href="{{.URL}}" style="color:#1a73e8; text-decoration:none; margin-right:10px;">View on Reddit</a>
+    {{if .KeywordConfigURL}}<a href="{{.KeywordConfigURL}}" style="color:#1a73e8; text-decoration:none;">Configure keyword</a>{{end}}
   </div>
   {{end}}
   {{if .Remaining}}

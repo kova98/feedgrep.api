@@ -17,6 +17,7 @@ type AppConfig struct {
 	KeycloakClientSecret string
 	KeycloakRealm        string
 	KeycloakURL          string
+	AppBaseURL           string
 	PostgresURL          string
 	SMTPHost             string
 	SMTPPort             string
@@ -38,6 +39,7 @@ func LoadConfig() {
 	cfg.KeycloakClientSecret = loadRequired("KEYCLOAK_CLIENT_SECRET")
 	cfg.KeycloakRealm = loadRequired("KEYCLOAK_REALM")
 	cfg.KeycloakURL = loadRequired("KEYCLOAK_URL")
+	cfg.AppBaseURL = loadRequired("APP_BASE_URL")
 	cfg.PostgresURL = loadRequired("POSTGRES_URL")
 	cfg.SMTPHost = loadRequired("SMTP_HOST")
 	cfg.SMTPPort = loadRequired("SMTP_PORT")

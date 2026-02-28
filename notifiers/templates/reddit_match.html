@@ -5,7 +5,10 @@
   <div style="color:#5f6368; font-size:13px; margin-bottom:16px;">{{.MatchType}} by u/{{.Author}}</div>
   {{if .Title}}<p style="margin:0 0 8px 0;"><strong>{{.Title}}</strong></p>{{end}}
   {{if .Body}}<p style="margin:0 0 12px 0;">{{.Body}}</p>{{end}}
-  <p style="margin:0;"><a href="{{.URL}}" style="color:#1a73e8; text-decoration:none;">View on Reddit</a></p>
+  <p style="margin:0 0 10px 0;"><a href="{{.URL}}" style="color:#1a73e8; text-decoration:none;">View on Reddit</a></p>
+  {{if .KeywordConfigURL}}
+  <p style="margin:0;"><a href="{{.KeywordConfigURL}}" style="display:inline-block; color:#ffffff; background:#1a73e8; text-decoration:none; padding:8px 12px; border-radius:6px;">Configure keyword</a></p>
+  {{end}}
 </div>
 </body>
 </html>

@@ -24,14 +24,16 @@ type Mailer struct {
 	smtpPort string
 	from     string
 	password string
+	appBase  string
 }
 
-func NewMailer(smtpHost, smtpPort, from, password string) *Mailer {
+func NewMailer(smtpHost, smtpPort, from, password, appBase string) *Mailer {
 	return &Mailer{
 		smtpHost: smtpHost,
 		smtpPort: smtpPort,
 		from:     from,
 		password: password,
+		appBase:  strings.TrimRight(appBase, "/"),
 	}
 }
 
@@ -58,21 +60,23 @@ func (h *Mailer) RedditMatchEmail(email string, match data.Match) (models.Email,
 
 	var buf bytes.Buffer
 	tmplData := struct {
-		Keyword   string
-		Subreddit string
-		Author    string
-		MatchType string
-		Title     string
-		Body      string
-		URL       string
+		Keyword          string
+		Subreddit        string
+		Author           string
+		MatchType        string
+		Title            string
+		Body             string
+		URL              string
+		KeywordConfigURL string
 	}{
-		Keyword:   payload.Keyword,
-		Subreddit: payload.Subreddit,
-		Author:    payload.Author,
-		MatchType: matchType,
-		Title:     payload.Title,
-		Body:      body,
-		URL:       url,
+		Keyword:          payload.Keyword,
+		Subreddit:        payload.Subreddit,
+		Author:           payload.Author,
+		MatchType:        matchType,
+		Title:            payload.Title,
+		Body:             body,
+		URL:              url,
+		KeywordConfigURL: h.keywordConfigURL(match.KeywordID),
 	}
 	if err := redditTemplates.ExecuteTemplate(&buf, "reddit_match.html", tmplData); err != nil {
 		return models.Email{}, fmt.Errorf("render reddit match template: %w", err)
@@ -87,13 +91,14 @@ func (h *Mailer) RedditMatchEmail(email string, match data.Match) (models.Email,
 
 func (h *Mailer) RedditDigestEmail(email string, matches []data.Match) (models.Email, error) {
 	type digestItem struct {
-		Keyword   string
-		Subreddit string
-		Author    string
-		Title     string
-		Body      string
-		URL       string
-		MatchType string
+		Keyword          string
+		Subreddit        string
+		Author           string
+		Title            string
+		Body             string
+		URL              string
+		MatchType        string
+		KeywordConfigURL string
 	}
 
 	items := make([]digestItem, 0, 10)
@@ -129,13 +134,14 @@ func (h *Mailer) RedditDigestEmail(email string, matches []data.Match) (models.E
 		body = strings.ReplaceAll(body, "\n", "<br>")
 
 		items = append(items, digestItem{
-			Keyword:   payload.Keyword,
-			Subreddit: payload.Subreddit,
-			Author:    payload.Author,
-			Title:     title,
-			Body:      body,
-			URL:       url,
-			MatchType: matchType,
+			Keyword:          payload.Keyword,
+			Subreddit:        payload.Subreddit,
+			Author:           payload.Author,
+			Title:            title,
+			Body:             body,
+			URL:              url,
+			MatchType:        matchType,
+			KeywordConfigURL: h.keywordConfigURL(match.KeywordID),
 		})
 	}
 
@@ -197,4 +203,12 @@ Content-Type: text/html; charset=UTF-8
 
 	slog.Info("email sent", "recipient", mail.To, "subject", mail.Subject)
 	return nil
+}
+
+func (h *Mailer) keywordConfigURL(keywordID int) string {
+	if h.appBase == "" || keywordID <= 0 {
+		return ""
+	}
+
+	return fmt.Sprintf("%s/keywords/%d/edit", h.appBase, keywordID)
 }
