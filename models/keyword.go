@@ -22,36 +22,58 @@ type UpdateKeywordRequest struct {
 }
 
 type KeywordFilters struct {
-	Reddit *RedditFilters `json:"reddit,omitempty"`
+	Reddit   *RedditFilters   `json:"reddit,omitempty"`
+	Language *LanguageFilters `json:"language,omitempty"`
 }
 
 func ToDataFilters(filters KeywordFilters) data.KeywordFilters {
-	if filters.Reddit == nil {
-		return data.KeywordFilters{}
-	}
-	return data.KeywordFilters{
-		Reddit: &data.RedditFilters{
+	out := data.KeywordFilters{}
+
+	if filters.Reddit != nil {
+		out.Reddit = &data.RedditFilters{
 			Subreddits:        filters.Reddit.Subreddits,
 			ExcludeSubreddits: filters.Reddit.ExcludeSubreddits,
-		},
+		}
 	}
+
+	if filters.Language != nil {
+		out.Language = &data.LanguageFilters{
+			Languages:        filters.Language.Languages,
+			ExcludeLanguages: filters.Language.ExcludeLanguages,
+		}
+	}
+
+	return out
 }
 
 func FromDataFilters(filters data.KeywordFilters) KeywordFilters {
-	if filters.Reddit == nil {
-		return KeywordFilters{}
-	}
-	return KeywordFilters{
-		Reddit: &RedditFilters{
+	out := KeywordFilters{}
+
+	if filters.Reddit != nil {
+		out.Reddit = &RedditFilters{
 			Subreddits:        filters.Reddit.Subreddits,
 			ExcludeSubreddits: filters.Reddit.ExcludeSubreddits,
-		},
+		}
 	}
+
+	if filters.Language != nil {
+		out.Language = &LanguageFilters{
+			Languages:        filters.Language.Languages,
+			ExcludeLanguages: filters.Language.ExcludeLanguages,
+		}
+	}
+
+	return out
 }
 
 type RedditFilters struct {
 	Subreddits        []string `json:"subreddits,omitempty"`
 	ExcludeSubreddits []string `json:"excludeSubreddits,omitempty"`
+}
+
+type LanguageFilters struct {
+	Languages        []string `json:"languages,omitempty"`
+	ExcludeLanguages []string `json:"excludeLanguages,omitempty"`
 }
 
 type Keyword struct {

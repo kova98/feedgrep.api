@@ -32,12 +32,18 @@ type Keyword struct {
 }
 
 type KeywordFilters struct {
-	Reddit *RedditFilters `json:"reddit,omitempty"`
+	Reddit   *RedditFilters   `json:"reddit,omitempty"`
+	Language *LanguageFilters `json:"language,omitempty"`
 }
 
 type RedditFilters struct {
 	Subreddits        []string `json:"subreddits,omitempty"`         // only match in these subreddits (empty = all)
 	ExcludeSubreddits []string `json:"exclude_subreddits,omitempty"` // never match in these subreddits
+}
+
+type LanguageFilters struct {
+	Languages        []string `json:"languages,omitempty"`         // only match in these detected languages (empty = all)
+	ExcludeLanguages []string `json:"exclude_languages,omitempty"` // never match in these detected languages
 }
 
 func (k *Keyword) ParseFilters() (KeywordFilters, error) {

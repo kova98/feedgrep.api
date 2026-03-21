@@ -373,7 +373,7 @@ func (h *ArcticShiftPoller) loadKeywords() {
 			userID:    keyword.UserID,
 			keyword:   kw,
 			matchMode: keyword.MatchMode,
-			filters:   keyword.Filters.Reddit,
+			filters:   keyword.Filters,
 		})
 	}
 
@@ -400,7 +400,7 @@ type keywordSubscription struct {
 	userID    uuid.UUID
 	keyword   string
 	matchMode enums.MatchMode
-	filters   *data.RedditFilters
+	filters   data.KeywordFilters
 }
 
 func (s *keywordSubscription) Matches(text, subreddit string) (bool, error) {
@@ -418,8 +418,18 @@ func (s *keywordSubscription) Matches(text, subreddit string) (bool, error) {
 		return false, nil
 	}
 
-	if s.filters != nil {
-		match, err := matchers.MatchesSubreddit(*s.filters, subreddit)
+	if s.filters.Reddit != nil {
+		match, err := matchers.MatchesSubreddit(*s.filters.Reddit, subreddit)
+		if err != nil {
+			return false, err
+		}
+		if !match {
+			return false, nil
+		}
+	}
+
+	if s.filters.Language != nil {
+		match, err := matchers.MatchesLanguage(*s.filters.Language, text)
 		if err != nil {
 			return false, err
 		}
