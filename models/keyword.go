@@ -1,6 +1,9 @@
 package models
 
 import (
+	"encoding/json"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -122,6 +125,108 @@ type SmartCondition struct {
 	All       []SmartCondition `json:"all,omitempty"`
 	AnyPhrase []string         `json:"anyPhrase,omitempty"`
 	Regex     []string         `json:"regex,omitempty"`
+}
+
+func (c *SmartCondition) UnmarshalJSON(data []byte) error {
+	type rawCondition struct {
+		Any       []json.RawMessage `json:"any,omitempty"`
+		All       []json.RawMessage `json:"all,omitempty"`
+		AnyPhrase json.RawMessage   `json:"anyPhrase,omitempty"`
+		Regex     json.RawMessage   `json:"regex,omitempty"`
+	}
+
+	var raw rawCondition
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	any, err := parseSmartConditionChildren(raw.Any)
+	if err != nil {
+		return fmt.Errorf("decode any: %w", err)
+	}
+	all, err := parseSmartConditionChildren(raw.All)
+	if err != nil {
+		return fmt.Errorf("decode all: %w", err)
+	}
+	anyPhrase, err := parseSmartConditionStrings(raw.AnyPhrase)
+	if err != nil {
+		return fmt.Errorf("decode anyPhrase: %w", err)
+	}
+	regex, err := parseSmartConditionStrings(raw.Regex)
+	if err != nil {
+		return fmt.Errorf("decode regex: %w", err)
+	}
+
+	c.Any = any
+	c.All = all
+	c.AnyPhrase = anyPhrase
+	c.Regex = regex
+	return nil
+}
+
+func parseSmartConditionChildren(items []json.RawMessage) ([]SmartCondition, error) {
+	if len(items) == 0 {
+		return nil, nil
+	}
+
+	out := make([]SmartCondition, 0, len(items))
+	for _, item := range items {
+		trimmed := string(item)
+		if len(trimmed) == 0 {
+			continue
+		}
+
+		var phrase string
+		if err := json.Unmarshal(item, &phrase); err == nil {
+			phrase = normalizeGeneratedString(phrase)
+			if phrase == "" {
+				continue
+			}
+			out = append(out, SmartCondition{AnyPhrase: []string{phrase}})
+			continue
+		}
+
+		var child SmartCondition
+		if err := json.Unmarshal(item, &child); err != nil {
+			return nil, err
+		}
+		out = append(out, child)
+	}
+
+	return out, nil
+}
+
+func parseSmartConditionStrings(raw json.RawMessage) ([]string, error) {
+	if len(raw) == 0 {
+		return nil, nil
+	}
+
+	var single string
+	if err := json.Unmarshal(raw, &single); err == nil {
+		single = normalizeGeneratedString(single)
+		if single == "" {
+			return nil, nil
+		}
+		return []string{single}, nil
+	}
+
+	var many []string
+	if err := json.Unmarshal(raw, &many); err == nil {
+		out := make([]string, 0, len(many))
+		for _, item := range many {
+			item = normalizeGeneratedString(item)
+			if item != "" {
+				out = append(out, item)
+			}
+		}
+		return out, nil
+	}
+
+	return nil, fmt.Errorf("expected string or []string")
+}
+
+func normalizeGeneratedString(value string) string {
+	return strings.TrimSpace(value)
 }
 
 type SmartThresholds struct {
@@ -264,4 +369,13 @@ type MatchedSubreddit struct {
 
 type GetKeywordMatchedSubredditsResponse struct {
 	Matches []MatchedSubreddit `json:"matches"`
+}
+
+type GenerateSmartFilterRequest struct {
+	Name   string `json:"name"`
+	Intent string `json:"intent"`
+}
+
+type GenerateSmartFilterResponse struct {
+	Filter SmartFilter `json:"filter"`
 }

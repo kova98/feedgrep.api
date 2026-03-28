@@ -13,17 +13,38 @@ import (
 )
 
 type KeywordHandler struct {
-	repo      *repos.KeywordRepo
-	matchRepo *repos.MatchRepo
-	searchURL string
+	repo            *repos.KeywordRepo
+	matchRepo       *repos.MatchRepo
+	searchURL       string
+	filterGenerator *SmartFilterGenerator
 }
 
-func NewKeywordHandler(repo *repos.KeywordRepo, matchRepo *repos.MatchRepo, searchURL string) *KeywordHandler {
+func NewKeywordHandler(repo *repos.KeywordRepo, matchRepo *repos.MatchRepo, searchURL string, filterGenerator *SmartFilterGenerator) *KeywordHandler {
 	return &KeywordHandler{
-		repo:      repo,
-		matchRepo: matchRepo,
-		searchURL: strings.TrimRight(searchURL, "/"),
+		repo:            repo,
+		matchRepo:       matchRepo,
+		searchURL:       strings.TrimRight(searchURL, "/"),
+		filterGenerator: filterGenerator,
 	}
+}
+
+func (h *KeywordHandler) GenerateSmartFilter(w http.ResponseWriter, r *http.Request) Result {
+	var req models.GenerateSmartFilterRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return BadRequest("Invalid request.")
+	}
+
+	intent := strings.TrimSpace(req.Intent)
+	if intent == "" {
+		return BadRequest("Intent is required.")
+	}
+
+	filter, err := h.filterGenerator.Generate(r.Context(), strings.TrimSpace(req.Name), intent)
+	if err != nil {
+		return InternalError(err, "generate smart filter: ")
+	}
+
+	return Ok(models.GenerateSmartFilterResponse{Filter: filter})
 }
 
 func (h *KeywordHandler) CreateKeyword(w http.ResponseWriter, r *http.Request) Result {

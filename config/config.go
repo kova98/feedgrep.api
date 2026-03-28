@@ -28,6 +28,8 @@ type AppConfig struct {
 	LogLevel             slog.Level
 	EnableArcticShift    bool
 	SearchAPIURL         string
+	OpenAIAPIKey         string
+	OpenAIModel          string
 }
 
 var Config AppConfig
@@ -48,7 +50,9 @@ func LoadConfig() {
 	cfg.SMTPPassword = loadRequired("SMTP_PASSWORD")
 	cfg.PostPollIntervalMs = parseIntEnv(loadOptional("POST_POLL_INTERVAL_MS", "3000"))
 	cfg.EnableArcticShift = parseBoolEnv(loadOptional("ENABLE_ARCTICSHIFT_POLLING", "true"))
-	cfg.SearchAPIURL = loadOptional("SEARCH_API_URL", "http://127.0.0.1:4001")
+	cfg.SearchAPIURL = loadRequired("SEARCH_API_URL")
+	cfg.OpenAIAPIKey = loadRequired("OPENAI_API_KEY")
+	cfg.OpenAIModel = loadOptional("OPENAI_MODEL", "gpt-5.4")
 
 	lvlString := loadOptional("LOG_LEVEL", "INFO")
 	var err error

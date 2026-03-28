@@ -60,7 +60,10 @@ func main() {
 	keywordRepo := repos.NewKeywordRepo(db)
 	matchRepo := repos.NewMatchRepo(db)
 
-	keywords := handlers.NewKeywordHandler(keywordRepo, matchRepo, config.Config.SearchAPIURL)
+	// TODO: clean this shit up
+	smartFilterGenerator := handlers.NewSmartFilterGenerator(config.Config.OpenAIAPIKey, config.Config.OpenAIModel)
+
+	keywords := handlers.NewKeywordHandler(keywordRepo, matchRepo, config.Config.SearchAPIURL, smartFilterGenerator)
 	matches := handlers.NewMatchHandler(matchRepo)
 	keycloakClient := gocloak.NewClient(config.Config.KeycloakURL)
 	auth = handlers.NewAuthHandler(keycloakClient)
@@ -91,6 +94,7 @@ func main() {
 
 	mux.HandleFunc("POST /keywords", private(keywords.CreateKeyword))
 	mux.HandleFunc("GET /keywords", private(keywords.GetKeywords))
+	mux.HandleFunc("POST /keywords/generate-smart-filter", private(keywords.GenerateSmartFilter))
 	mux.HandleFunc("GET /keywords/{id}", private(keywords.GetKeyword))
 	mux.HandleFunc("PUT /keywords/{id}", private(keywords.UpdateKeyword))
 	mux.HandleFunc("DELETE /keywords/{id}", private(keywords.DeleteKeyword))
