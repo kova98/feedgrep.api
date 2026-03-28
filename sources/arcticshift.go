@@ -128,10 +128,8 @@ func (h *ArcticShiftPoller) pollPosts() bool {
 			newestPostUTC = post.CreatedUTC
 		}
 
-		text := post.Title + " " + post.Selftext
-
 		for _, sub := range h.subscriptions {
-			subMatches, err := sub.Matches(text, post.Subreddit)
+			subMatches, err := sub.Matches(post.Title, post.Selftext, post.Subreddit)
 			if err != nil {
 				h.logger.Error("failed to check match", "error", err, "post_id", post.ID)
 				continue
@@ -206,7 +204,7 @@ func (h *ArcticShiftPoller) pollComments() bool {
 		}
 
 		for _, sub := range h.subscriptions {
-			subMatches, err := sub.Matches(comment.Body, comment.Subreddit)
+			subMatches, err := sub.Matches("", comment.Body, comment.Subreddit)
 			if err != nil {
 				h.logger.Error("failed to check match", "error", err, "comment_id", comment.ID)
 				continue
@@ -403,19 +401,40 @@ type keywordSubscription struct {
 	filters   data.KeywordFilters
 }
 
-func (s *keywordSubscription) Matches(text, subreddit string) (bool, error) {
+func (s *keywordSubscription) Matches(title, body, subreddit string) (bool, error) {
+	text := strings.TrimSpace(strings.TrimSpace(title) + "\n" + strings.TrimSpace(body))
 	textLower := strings.ToLower(text)
 
 	if s.matchMode == enums.MatchModeInvalid {
 		return false, errors.New(string("invalid match mode: " + s.matchMode))
 	}
 
-	if s.matchMode == enums.MatchModeExact && !matchers.MatchesWholeWord(textLower, s.keyword) {
-		return false, nil
-	}
-
-	if s.matchMode == enums.MatchModeBroad && !matchers.MatchesPartially(textLower, s.keyword) {
-		return false, nil
+	switch s.matchMode {
+	case enums.MatchModeExact:
+		if !matchers.MatchesWholeWord(textLower, s.keyword) {
+			return false, nil
+		}
+	case enums.MatchModeBroad:
+		if !matchers.MatchesPartially(textLower, s.keyword) {
+			return false, nil
+		}
+	case enums.MatchModeSmart:
+		if s.filters.Smart == nil {
+			return false, errors.New("smart match mode requires a smart filter")
+		}
+		matched, err := matchers.MatchesSmart(*s.filters.Smart, matchers.SmartInput{
+			Title:     title,
+			Body:      body,
+			Subreddit: subreddit,
+		})
+		if err != nil {
+			return false, err
+		}
+		if !matched {
+			return false, nil
+		}
+	default:
+		return false, errors.New(string("invalid match mode: " + s.matchMode))
 	}
 
 	if s.filters.Reddit != nil {

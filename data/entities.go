@@ -34,6 +34,7 @@ type Keyword struct {
 type KeywordFilters struct {
 	Reddit   *RedditFilters   `json:"reddit,omitempty"`
 	Language *LanguageFilters `json:"language,omitempty"`
+	Smart    *SmartFilter     `json:"smart,omitempty"`
 }
 
 type RedditFilters struct {
@@ -44,6 +45,49 @@ type RedditFilters struct {
 type LanguageFilters struct {
 	Languages        []string `json:"languages,omitempty"`         // only match in these detected languages (empty = all)
 	ExcludeLanguages []string `json:"exclude_languages,omitempty"` // never match in these detected languages
+}
+
+type SmartFilter struct {
+	Version     string          `json:"version,omitempty"`
+	Name        string          `json:"name,omitempty"`
+	Description string          `json:"description,omitempty"`
+	Scope       SmartScope      `json:"scope,omitempty"`
+	Candidate   SmartRule       `json:"candidate"`
+	Signals     []SmartSignal   `json:"signals,omitempty"`
+	Thresholds  SmartThresholds `json:"thresholds,omitempty"`
+}
+
+type SmartScope struct {
+	Language   SmartScopeList `json:"language,omitempty"`
+	Subreddits SmartScopeList `json:"subreddits,omitempty"`
+}
+
+type SmartScopeList struct {
+	Include []string `json:"include,omitempty"`
+	Exclude []string `json:"exclude,omitempty"`
+}
+
+type SmartRule struct {
+	Where     []string       `json:"where,omitempty"`
+	Condition SmartCondition `json:"condition"`
+}
+
+type SmartSignal struct {
+	Name      string         `json:"name,omitempty"`
+	Weight    int            `json:"weight"`
+	Where     []string       `json:"where,omitempty"`
+	Condition SmartCondition `json:"condition"`
+}
+
+type SmartCondition struct {
+	Any       []SmartCondition `json:"any,omitempty"`
+	All       []SmartCondition `json:"all,omitempty"`
+	AnyPhrase []string         `json:"anyPhrase,omitempty"`
+	Regex     []string         `json:"regex,omitempty"`
+}
+
+type SmartThresholds struct {
+	AcceptMinScore int `json:"acceptMinScore,omitempty"`
 }
 
 func (k *Keyword) ParseFilters() (KeywordFilters, error) {

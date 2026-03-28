@@ -44,6 +44,9 @@ func (h *KeywordHandler) CreateKeyword(w http.ResponseWriter, r *http.Request) R
 	if req.MatchMode == enums.MatchModeInvalid {
 		return BadRequest("Invalid match mode.")
 	}
+	if req.MatchMode == enums.MatchModeSmart && (req.Filters == nil || req.Filters.Smart == nil) {
+		return BadRequest("Smart match mode requires a smart filter.")
+	}
 
 	keyword := data.Keyword{
 		UserID:    user.ID,
@@ -143,6 +146,9 @@ func (h *KeywordHandler) UpdateKeyword(w http.ResponseWriter, r *http.Request) R
 
 	if req.MatchMode == enums.MatchModeInvalid {
 		return BadRequest("Invalid match mode.")
+	}
+	if req.MatchMode == enums.MatchModeSmart && (req.Filters == nil || req.Filters.Smart == nil) {
+		return BadRequest("Smart match mode requires a smart filter.")
 	}
 
 	keyword := data.Keyword{

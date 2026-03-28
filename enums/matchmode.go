@@ -12,4 +12,8 @@ const (
 	// MatchModeExact requires an exact match of the whole word.
 	// For example, the keyword "cat" will match "cat" but not "catalog" or "concatenate".
 	MatchModeExact MatchMode = "exact"
+
+	// MatchModeSmart applies a deterministic smart configuration made of
+	// candidate conditions, weighted signals, and an acceptance threshold.
+	MatchModeSmart MatchMode = "smart"
 )
