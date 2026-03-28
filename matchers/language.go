@@ -9,6 +9,8 @@ import (
 )
 
 var ErrConflictingLanguageFilters = errors.New("cannot have both include and exclude language filters")
+
+// TODO: Consider playing with WithPreloadedLanguageModels or WithLowAccuracyMode if performance becomes an issue
 var languageDetector = lingua.NewLanguageDetectorBuilder().FromAllLanguages().Build()
 
 func MatchesLanguage(f data.LanguageFilters, text string) (bool, error) {

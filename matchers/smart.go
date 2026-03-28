@@ -15,39 +15,69 @@ type SmartInput struct {
 	Subreddit string
 }
 
+type SmartMatchResult struct {
+	Matched          bool
+	CandidateMatched bool
+	Score            int
+	AcceptMinScore   int
+	MatchedSignals   []string
+	RejectedBy       string
+}
+
 func MatchesSmart(filter data.SmartFilter, input SmartInput) (bool, error) {
-	if !matchesScopeList(filter.Scope.Subreddits, input.Subreddit) {
-		return false, nil
+	result, err := EvaluateSmart(filter, input)
+	if err != nil {
+		return false, err
+	}
+	return result.Matched, nil
+}
+
+func EvaluateSmart(filter data.SmartFilter, input SmartInput) (SmartMatchResult, error) {
+	result := SmartMatchResult{
+		AcceptMinScore: filter.Thresholds.AcceptMinScore,
 	}
 
-	text := strings.TrimSpace(strings.TrimSpace(input.Title) + "\n" + strings.TrimSpace(input.Body))
-	if !matchesLanguageScope(filter.Scope.Language, text) {
-		return false, nil
+	if !matchesScopeList(filter.Scope.Subreddits, input.Subreddit) {
+		result.RejectedBy = "subreddit_scope"
+		return result, nil
 	}
 
 	candidateMatched, err := evaluateSmartRule(filter.Candidate, input)
 	if err != nil {
-		return false, err
+		return result, err
 	}
+	result.CandidateMatched = candidateMatched
 	if !candidateMatched {
-		return false, nil
+		result.RejectedBy = "candidate"
+		return result, nil
 	}
 
-	score := 0
+	text := strings.TrimSpace(strings.TrimSpace(input.Title) + "\n" + strings.TrimSpace(input.Body))
+	if !matchesLanguageScope(filter.Scope.Language, text) {
+		result.RejectedBy = "language_scope"
+		return result, nil
+	}
+
 	for _, signal := range filter.Signals {
 		matched, err := evaluateSmartRule(data.SmartRule{
 			Where:     signal.Where,
 			Condition: signal.Condition,
 		}, input)
 		if err != nil {
-			return false, err
+			return result, err
 		}
 		if matched {
-			score += signal.Weight
+			result.Score += signal.Weight
+			result.MatchedSignals = append(result.MatchedSignals, signal.Name)
 		}
 	}
 
-	return score >= filter.Thresholds.AcceptMinScore, nil
+	result.Matched = result.Score >= result.AcceptMinScore
+	if !result.Matched {
+		result.RejectedBy = "score_threshold"
+	}
+
+	return result, nil
 }
 
 func matchesLanguageScope(scope data.SmartScopeList, text string) bool {

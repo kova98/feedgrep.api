@@ -129,11 +129,12 @@ func (h *ArcticShiftPoller) pollPosts() bool {
 		}
 
 		for _, sub := range h.subscriptions {
-			subMatches, err := sub.Matches(post.Title, post.Selftext, post.Subreddit)
+			subMatches, smartResult, err := sub.Matches(post.Title, post.Selftext, post.Subreddit)
 			if err != nil {
 				h.logger.Error("failed to check match", "error", err, "post_id", post.ID)
 				continue
 			}
+			h.logSmartMatchResult("post", post.ID, sub, smartResult)
 			if !subMatches {
 				continue
 			}
@@ -204,11 +205,12 @@ func (h *ArcticShiftPoller) pollComments() bool {
 		}
 
 		for _, sub := range h.subscriptions {
-			subMatches, err := sub.Matches("", comment.Body, comment.Subreddit)
+			subMatches, smartResult, err := sub.Matches("", comment.Body, comment.Subreddit)
 			if err != nil {
 				h.logger.Error("failed to check match", "error", err, "comment_id", comment.ID)
 				continue
 			}
+			h.logSmartMatchResult("comment", comment.ID, sub, smartResult)
 			if !subMatches {
 				continue
 			}
@@ -401,61 +403,82 @@ type keywordSubscription struct {
 	filters   data.KeywordFilters
 }
 
-func (s *keywordSubscription) Matches(title, body, subreddit string) (bool, error) {
+func (h *ArcticShiftPoller) logSmartMatchResult(kind, itemID string, sub keywordSubscription, result *matchers.SmartMatchResult) {
+	if result == nil {
+		return
+	}
+
+	h.logger.Debug(
+		"smart match evaluation",
+		"kind", kind,
+		"item_id", itemID,
+		"keyword_id", sub.id,
+		"keyword", sub.keyword,
+		"matched", result.Matched,
+		"candidate_matched", result.CandidateMatched,
+		"score", result.Score,
+		"accept_min_score", result.AcceptMinScore,
+		"matched_signals", result.MatchedSignals,
+		"rejected_by", result.RejectedBy,
+	)
+}
+
+func (s *keywordSubscription) Matches(title, body, subreddit string) (bool, *matchers.SmartMatchResult, error) {
 	text := strings.TrimSpace(strings.TrimSpace(title) + "\n" + strings.TrimSpace(body))
 	textLower := strings.ToLower(text)
 
 	if s.matchMode == enums.MatchModeInvalid {
-		return false, errors.New(string("invalid match mode: " + s.matchMode))
+		return false, nil, errors.New(string("invalid match mode: " + s.matchMode))
 	}
 
 	switch s.matchMode {
 	case enums.MatchModeExact:
 		if !matchers.MatchesWholeWord(textLower, s.keyword) {
-			return false, nil
+			return false, nil, nil
 		}
 	case enums.MatchModeBroad:
 		if !matchers.MatchesPartially(textLower, s.keyword) {
-			return false, nil
+			return false, nil, nil
 		}
 	case enums.MatchModeSmart:
 		if s.filters.Smart == nil {
-			return false, errors.New("smart match mode requires a smart filter")
+			return false, nil, errors.New("smart match mode requires a smart filter")
 		}
-		matched, err := matchers.MatchesSmart(*s.filters.Smart, matchers.SmartInput{
+		result, err := matchers.EvaluateSmart(*s.filters.Smart, matchers.SmartInput{
 			Title:     title,
 			Body:      body,
 			Subreddit: subreddit,
 		})
 		if err != nil {
-			return false, err
+			return false, nil, err
 		}
-		if !matched {
-			return false, nil
+		if !result.Matched {
+			return false, &result, nil
 		}
+		return true, &result, nil
 	default:
-		return false, errors.New(string("invalid match mode: " + s.matchMode))
+		return false, nil, errors.New(string("invalid match mode: " + s.matchMode))
 	}
 
 	if s.filters.Reddit != nil {
 		match, err := matchers.MatchesSubreddit(*s.filters.Reddit, subreddit)
 		if err != nil {
-			return false, err
+			return false, nil, err
 		}
 		if !match {
-			return false, nil
+			return false, nil, nil
 		}
 	}
 
 	if s.filters.Language != nil {
 		match, err := matchers.MatchesLanguage(*s.filters.Language, text)
 		if err != nil {
-			return false, err
+			return false, nil, err
 		}
 		if !match {
-			return false, nil
+			return false, nil, nil
 		}
 	}
 
-	return true, nil
+	return true, nil, nil
 }
