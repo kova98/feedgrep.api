@@ -21,7 +21,22 @@ type SmartMatchResult struct {
 	Score            int
 	AcceptMinScore   int
 	MatchedSignals   []string
+	CandidateDetails []SmartRuleMatchDetail
+	SignalDetails    []SmartSignalMatchDetail
 	RejectedBy       string
+}
+
+type SmartRuleMatchDetail struct {
+	Field       string
+	MatchType   string
+	MatchedTerm string
+	MatchedText string
+}
+
+type SmartSignalMatchDetail struct {
+	Name          string
+	Weight        int
+	MatchedFields []SmartRuleMatchDetail
 }
 
 func MatchesSmart(filter data.SmartFilter, input SmartInput) (bool, error) {
@@ -42,11 +57,12 @@ func EvaluateSmart(filter data.SmartFilter, input SmartInput) (SmartMatchResult,
 		return result, nil
 	}
 
-	candidateMatched, err := evaluateSmartRule(filter.Candidate, input)
+	candidateMatched, candidateDetails, err := evaluateSmartRule(filter.Candidate, input)
 	if err != nil {
 		return result, err
 	}
 	result.CandidateMatched = candidateMatched
+	result.CandidateDetails = candidateDetails
 	if !candidateMatched {
 		result.RejectedBy = "candidate"
 		return result, nil
@@ -59,7 +75,7 @@ func EvaluateSmart(filter data.SmartFilter, input SmartInput) (SmartMatchResult,
 	}
 
 	for _, signal := range filter.Signals {
-		matched, err := evaluateSmartRule(data.SmartRule{
+		matched, details, err := evaluateSmartRule(data.SmartRule{
 			Where:     signal.Where,
 			Condition: signal.Condition,
 		}, input)
@@ -69,6 +85,11 @@ func EvaluateSmart(filter data.SmartFilter, input SmartInput) (SmartMatchResult,
 		if matched {
 			result.Score += signal.Weight
 			result.MatchedSignals = append(result.MatchedSignals, signal.Name)
+			result.SignalDetails = append(result.SignalDetails, SmartSignalMatchDetail{
+				Name:          signal.Name,
+				Weight:        signal.Weight,
+				MatchedFields: details,
+			})
 		}
 	}
 
@@ -151,9 +172,9 @@ func normalizeSmartValue(value string) string {
 	return strings.ToLower(strings.TrimSpace(value))
 }
 
-func evaluateSmartRule(rule data.SmartRule, input SmartInput) (bool, error) {
+func evaluateSmartRule(rule data.SmartRule, input SmartInput) (bool, []SmartRuleMatchDetail, error) {
 	if isEmptySmartCondition(rule.Condition) {
-		return false, nil
+		return false, nil, nil
 	}
 
 	fields := rule.Where
@@ -164,42 +185,51 @@ func evaluateSmartRule(rule data.SmartRule, input SmartInput) (bool, error) {
 	return evaluateSmartCondition(rule.Condition, fields, input)
 }
 
-func evaluateSmartCondition(condition data.SmartCondition, fields []string, input SmartInput) (bool, error) {
+func evaluateSmartCondition(condition data.SmartCondition, fields []string, input SmartInput) (bool, []SmartRuleMatchDetail, error) {
 	if len(condition.Any) > 0 {
 		for _, child := range condition.Any {
-			matched, err := evaluateSmartCondition(child, fields, input)
+			matched, details, err := evaluateSmartCondition(child, fields, input)
 			if err != nil {
-				return false, err
+				return false, nil, err
 			}
 			if matched {
-				return true, nil
+				return true, details, nil
 			}
 		}
-		return false, nil
+		return false, nil, nil
 	}
 
 	if len(condition.All) > 0 {
+		allDetails := make([]SmartRuleMatchDetail, 0)
 		for _, child := range condition.All {
-			matched, err := evaluateSmartCondition(child, fields, input)
+			matched, details, err := evaluateSmartCondition(child, fields, input)
 			if err != nil {
-				return false, err
+				return false, nil, err
 			}
 			if !matched {
-				return false, nil
+				return false, nil, nil
 			}
+			allDetails = append(allDetails, details...)
 		}
-		return true, nil
+		return true, allDetails, nil
 	}
 
 	if len(condition.AnyPhrase) > 0 {
 		for _, field := range fields {
-			value := strings.ToLower(fieldValue(field, input))
+			originalValue := fieldValue(field, input)
+			value := strings.ToLower(originalValue)
 			if value == "" {
 				continue
 			}
 			for _, phrase := range condition.AnyPhrase {
-				if strings.Contains(value, strings.ToLower(strings.TrimSpace(phrase))) {
-					return true, nil
+				normalizedPhrase := strings.ToLower(strings.TrimSpace(phrase))
+				if strings.Contains(value, normalizedPhrase) {
+					return true, []SmartRuleMatchDetail{{
+						Field:       field,
+						MatchType:   "anyPhrase",
+						MatchedTerm: phrase,
+						MatchedText: originalValue,
+					}}, nil
 				}
 			}
 		}
@@ -214,16 +244,21 @@ func evaluateSmartCondition(condition data.SmartCondition, fields []string, inpu
 			for _, pattern := range condition.Regex {
 				re, err := regexp.Compile("(?i)" + pattern)
 				if err != nil {
-					return false, err
+					return false, nil, err
 				}
 				if re.MatchString(value) {
-					return true, nil
+					return true, []SmartRuleMatchDetail{{
+						Field:       field,
+						MatchType:   "regex",
+						MatchedTerm: pattern,
+						MatchedText: value,
+					}}, nil
 				}
 			}
 		}
 	}
 
-	return false, nil
+	return false, nil, nil
 }
 
 func fieldValue(field string, input SmartInput) string {

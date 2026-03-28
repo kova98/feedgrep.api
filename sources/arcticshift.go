@@ -407,18 +407,17 @@ func (h *ArcticShiftPoller) logSmartMatchResult(kind, itemID string, sub keyword
 	if result == nil {
 		return
 	}
+	if !result.CandidateMatched {
+		return
+	}
 
 	h.logger.Debug(
 		"smart match evaluation",
-		"kind", kind,
-		"item_id", itemID,
 		"keyword_id", sub.id,
-		"keyword", sub.keyword,
 		"matched", result.Matched,
-		"candidate_matched", result.CandidateMatched,
 		"score", result.Score,
-		"accept_min_score", result.AcceptMinScore,
 		"matched_signals", result.MatchedSignals,
+		"signal_details", result.SignalDetails,
 		"rejected_by", result.RejectedBy,
 	)
 }
