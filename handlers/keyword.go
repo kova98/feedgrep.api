@@ -15,12 +15,14 @@ import (
 type KeywordHandler struct {
 	repo      *repos.KeywordRepo
 	matchRepo *repos.MatchRepo
+	searchURL string
 }
 
-func NewKeywordHandler(repo *repos.KeywordRepo, matchRepo *repos.MatchRepo) *KeywordHandler {
+func NewKeywordHandler(repo *repos.KeywordRepo, matchRepo *repos.MatchRepo, searchURL string) *KeywordHandler {
 	return &KeywordHandler{
 		repo:      repo,
 		matchRepo: matchRepo,
+		searchURL: strings.TrimRight(searchURL, "/"),
 	}
 }
 

@@ -27,6 +27,7 @@ type AppConfig struct {
 	AppEnv               string // EnvDevelopment or EnvProduction
 	LogLevel             slog.Level
 	EnableArcticShift    bool
+	SearchAPIURL         string
 }
 
 var Config AppConfig
@@ -47,6 +48,7 @@ func LoadConfig() {
 	cfg.SMTPPassword = loadRequired("SMTP_PASSWORD")
 	cfg.PostPollIntervalMs = parseIntEnv(loadOptional("POST_POLL_INTERVAL_MS", "3000"))
 	cfg.EnableArcticShift = parseBoolEnv(loadOptional("ENABLE_ARCTICSHIFT_POLLING", "true"))
+	cfg.SearchAPIURL = loadOptional("SEARCH_API_URL", "http://127.0.0.1:4001")
 
 	lvlString := loadOptional("LOG_LEVEL", "INFO")
 	var err error

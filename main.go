@@ -60,7 +60,7 @@ func main() {
 	keywordRepo := repos.NewKeywordRepo(db)
 	matchRepo := repos.NewMatchRepo(db)
 
-	keywords := handlers.NewKeywordHandler(keywordRepo, matchRepo)
+	keywords := handlers.NewKeywordHandler(keywordRepo, matchRepo, config.Config.SearchAPIURL)
 	matches := handlers.NewMatchHandler(matchRepo)
 	keycloakClient := gocloak.NewClient(config.Config.KeycloakURL)
 	auth = handlers.NewAuthHandler(keycloakClient)
@@ -95,6 +95,7 @@ func main() {
 	mux.HandleFunc("PUT /keywords/{id}", private(keywords.UpdateKeyword))
 	mux.HandleFunc("DELETE /keywords/{id}", private(keywords.DeleteKeyword))
 	mux.HandleFunc("GET /keywords/{id}/matched-subreddits", private(keywords.GetKeywordMatchedSubreddits))
+	mux.HandleFunc("GET /keywords/{id}/historical-stream", privateHTTP(keywords.StreamHistoricalSmartMatches))
 
 	mux.HandleFunc("GET /matches", private(matches.GetMatches))
 
@@ -150,6 +151,23 @@ func private(handler handlers.Handler) http.HandlerFunc {
 		ctx := context.WithValue(r.Context(), UserContextKey, user)
 
 		public(handler)(w, r.WithContext(ctx))
+	}
+}
+
+func privateHTTP(handler http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		keyHeader := r.Header.Get("x-api-key")
+		authHeader := r.Header.Get("Authorization")
+		result := auth.GetUser(r.Context(), keyHeader, authHeader)
+		if result.Code != http.StatusOK {
+			slog.Debug("unauthorized request", "path", r.URL.Path)
+			writeResult(w, result)
+			return
+		}
+
+		user := result.Body.(data.User)
+		ctx := context.WithValue(r.Context(), UserContextKey, user)
+		handler(w, r.WithContext(ctx))
 	}
 }
 
