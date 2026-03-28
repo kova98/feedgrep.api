@@ -43,7 +43,7 @@ func (h *Mailer) RedditMatchEmail(email string, match data.Match) (models.Email,
 		return models.Email{}, err
 	}
 
-	subject := "feedgrep: new mentions"
+	subject := "feedgrep: new match"
 
 	matchType := "Post"
 	if payload.IsComment {
@@ -175,7 +175,7 @@ func (h *Mailer) RedditDigestEmail(email string, matches []data.Match) (models.E
 		return models.Email{}, fmt.Errorf("render reddit digest template: %w", err)
 	}
 
-	subject := "feedgrep: new mentions"
+	subject := "feedgrep: new match"
 
 	return models.Email{
 		To:      email,
