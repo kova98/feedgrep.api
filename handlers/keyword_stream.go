@@ -36,8 +36,8 @@ type searchStreamHit struct {
 }
 
 type searchStreamEnd struct {
-	SearchedIndexes int `json:"searched_indexes"`
-	HitCount        int `json:"hit_count"`
+	SearchedIndexes int `json:"searchedIndexes"`
+	HitCount        int `json:"hitCount"`
 }
 
 type browserProgressEvent struct {
