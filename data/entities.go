@@ -18,6 +18,15 @@ type User struct {
 	UpdatedAt   time.Time `db:"updated_at"`
 }
 
+type RateLimitCounter struct {
+	UserID    uuid.UUID `db:"user_id"`
+	RateID    string    `db:"rate_id"`
+	WindowKey string    `db:"window_key"`
+	Count     int       `db:"count"`
+	CreatedAt time.Time `db:"created_at"`
+	UpdatedAt time.Time `db:"updated_at"`
+}
+
 type Keyword struct {
 	ID         int             `db:"id"`
 	UserID     uuid.UUID       `db:"user_id"`

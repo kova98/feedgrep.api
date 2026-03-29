@@ -5,7 +5,9 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/kova98/feedgrep.api/config"
 	"github.com/kova98/feedgrep.api/data"
 	"github.com/kova98/feedgrep.api/data/repos"
 	"github.com/kova98/feedgrep.api/enums"
@@ -15,20 +17,24 @@ import (
 type KeywordHandler struct {
 	repo            *repos.KeywordRepo
 	matchRepo       *repos.MatchRepo
+	rateLimitRepo   *repos.RateLimitRepo
 	searchURL       string
 	filterGenerator *SmartFilterGenerator
 }
 
-func NewKeywordHandler(repo *repos.KeywordRepo, matchRepo *repos.MatchRepo, searchURL string, filterGenerator *SmartFilterGenerator) *KeywordHandler {
+func NewKeywordHandler(repo *repos.KeywordRepo, matchRepo *repos.MatchRepo, rateLimitRepo *repos.RateLimitRepo, searchURL string, filterGenerator *SmartFilterGenerator) *KeywordHandler {
 	return &KeywordHandler{
 		repo:            repo,
 		matchRepo:       matchRepo,
+		rateLimitRepo:   rateLimitRepo,
 		searchURL:       strings.TrimRight(searchURL, "/"),
 		filterGenerator: filterGenerator,
 	}
 }
 
 func (h *KeywordHandler) GenerateSmartFilter(w http.ResponseWriter, r *http.Request) Result {
+	user := r.Context().Value("user").(data.User)
+
 	var req models.GenerateSmartFilterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return BadRequest("Invalid request.")
@@ -37,6 +43,16 @@ func (h *KeywordHandler) GenerateSmartFilter(w http.ResponseWriter, r *http.Requ
 	intent := strings.TrimSpace(req.Intent)
 	if intent == "" {
 		return BadRequest("Intent is required.")
+	}
+
+	policy := config.RateLimits[config.RateIDSmartFilterGeneration]
+	windowKey := policy.WindowKey(time.Now())
+	_, allowed, err := h.rateLimitRepo.IncrementWithinLimit(user.ID, policy.RateID, windowKey, policy.Limit)
+	if err != nil {
+		return InternalError(err, "check smart filter generation rate limit: ")
+	}
+	if !allowed {
+		return TooManyRequests("You have reached the smart filter generation limit for the current period.")
 	}
 
 	filter, err := h.filterGenerator.Generate(r.Context(), strings.TrimSpace(req.Name), intent)

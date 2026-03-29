@@ -59,11 +59,12 @@ func main() {
 	users := handlers.NewUserHandler(usersRepo)
 	keywordRepo := repos.NewKeywordRepo(db)
 	matchRepo := repos.NewMatchRepo(db)
+	rateLimitRepo := repos.NewRateLimitRepo(db)
 
 	// TODO: clean this shit up
 	smartFilterGenerator := handlers.NewSmartFilterGenerator(config.Config.OpenAIAPIKey, config.Config.OpenAIModel)
 
-	keywords := handlers.NewKeywordHandler(keywordRepo, matchRepo, config.Config.SearchAPIURL, smartFilterGenerator)
+	keywords := handlers.NewKeywordHandler(keywordRepo, matchRepo, rateLimitRepo, config.Config.SearchAPIURL, smartFilterGenerator)
 	matches := handlers.NewMatchHandler(matchRepo)
 	keycloakClient := gocloak.NewClient(config.Config.KeycloakURL)
 	auth = handlers.NewAuthHandler(keycloakClient)

@@ -62,3 +62,10 @@ func Unauthorized(message string) Result {
 		Body: ErrorResponse{message},
 	}
 }
+
+func TooManyRequests(message string) Result {
+	return Result{
+		Code: http.StatusTooManyRequests,
+		Body: ErrorResponse{message},
+	}
+}
