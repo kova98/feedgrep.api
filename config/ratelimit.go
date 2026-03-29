@@ -6,7 +6,8 @@ import (
 )
 
 const (
-	RateIDSmartFilterGeneration = "smart_filter_generation"
+	RateIDSmartFilterGeneration       = "smart_filter_generation"
+	RateIDSmartFilterGenerationGlobal = "smart_filter_generation_global"
 )
 
 type RateLimitPolicy struct {
@@ -17,18 +18,29 @@ type RateLimitPolicy struct {
 }
 
 const (
-	RateLimitWindowDaily  = "daily"
-	RateLimitWindowHourly = "hourly"
-	RateLimitWindowWeekly = "weekly"
+	RateLimitWindowDaily   = "daily"
+	RateLimitWindowHourly  = "hourly"
+	RateLimitWindowWeekly  = "weekly"
+	RateLimitWindowMonthly = "monthly"
 )
 
-var RateLimits = map[string]RateLimitPolicy{
-	RateIDSmartFilterGeneration: {
-		RateID:    RateIDSmartFilterGeneration,
-		Limit:     3,
-		Window:    RateLimitWindowDaily,
-		WindowKey: DailyWindowKey,
-	},
+var RateLimits map[string]RateLimitPolicy
+
+func buildRateLimits() map[string]RateLimitPolicy {
+	return map[string]RateLimitPolicy{
+		RateIDSmartFilterGeneration: {
+			RateID:    RateIDSmartFilterGeneration,
+			Limit:     Config.WeeklySmartGenerationLimit,
+			Window:    RateLimitWindowWeekly,
+			WindowKey: WeeklyWindowKey,
+		},
+		RateIDSmartFilterGenerationGlobal: {
+			RateID:    RateIDSmartFilterGenerationGlobal,
+			Limit:     Config.GlobalGenerationLimit,
+			Window:    RateLimitWindowMonthly,
+			WindowKey: MonthlyWindowKey,
+		},
+	}
 }
 
 func DailyWindowKey(now time.Time) string {
@@ -42,4 +54,8 @@ func HourlyWindowKey(now time.Time) string {
 func WeeklyWindowKey(now time.Time) string {
 	year, week := now.UTC().ISOWeek()
 	return fmt.Sprintf("%04d-W%02d", year, week)
+}
+
+func MonthlyWindowKey(now time.Time) string {
+	return now.UTC().Format("2006-01")
 }

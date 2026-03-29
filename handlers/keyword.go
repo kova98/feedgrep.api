@@ -7,12 +7,16 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/kova98/feedgrep.api/config"
 	"github.com/kova98/feedgrep.api/data"
 	"github.com/kova98/feedgrep.api/data/repos"
 	"github.com/kova98/feedgrep.api/enums"
 	"github.com/kova98/feedgrep.api/models"
 )
+
+// fake user used for global rate limits
+var systemUserID = uuid.MustParse("00000000-0000-0000-0000-000000000001")
 
 type KeywordHandler struct {
 	repo            *repos.KeywordRepo
@@ -45,14 +49,26 @@ func (h *KeywordHandler) GenerateSmartFilter(w http.ResponseWriter, r *http.Requ
 		return BadRequest("Intent is required.")
 	}
 
-	policy := config.RateLimits[config.RateIDSmartFilterGeneration]
-	windowKey := policy.WindowKey(time.Now())
-	_, allowed, err := h.rateLimitRepo.IncrementWithinLimit(user.ID, policy.RateID, windowKey, policy.Limit)
+	now := time.Now()
+
+	userPolicy := config.RateLimits[config.RateIDSmartFilterGeneration]
+	userWindowKey := userPolicy.WindowKey(now)
+	_, allowed, err := h.rateLimitRepo.IncrementWithinLimit(user.ID, userPolicy.RateID, userWindowKey, userPolicy.Limit)
 	if err != nil {
-		return InternalError(err, "check smart filter generation rate limit: ")
+		return InternalError(err, "check per-user smart filter generation rate limit: ")
 	}
 	if !allowed {
 		return TooManyRequests("You have reached the smart filter generation limit for the current period.")
+	}
+
+	globalPolicy := config.RateLimits[config.RateIDSmartFilterGenerationGlobal]
+	globalWindowKey := globalPolicy.WindowKey(now)
+	_, allowed, err = h.rateLimitRepo.IncrementWithinLimit(systemUserID, globalPolicy.RateID, globalWindowKey, globalPolicy.Limit)
+	if err != nil {
+		return InternalError(err, "check global smart filter generation rate limit: ")
+	}
+	if !allowed {
+		return TooManyRequests("Smart filter generation is temporarily unavailable because the global generation limit has been reached for the current period.")
 	}
 
 	filter, err := h.filterGenerator.Generate(r.Context(), strings.TrimSpace(req.Name), intent)

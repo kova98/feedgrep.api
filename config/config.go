@@ -13,23 +13,25 @@ const (
 )
 
 type AppConfig struct {
-	KeycloakClientID     string
-	KeycloakClientSecret string
-	KeycloakRealm        string
-	KeycloakURL          string
-	AppBaseURL           string
-	PostgresURL          string
-	SMTPHost             string
-	SMTPPort             string
-	SMTPFrom             string
-	SMTPPassword         string
-	PostPollIntervalMs   int
-	AppEnv               string // EnvDevelopment or EnvProduction
-	LogLevel             slog.Level
-	EnableArcticShift    bool
-	SearchAPIURL         string
-	OpenAIAPIKey         string
-	OpenAIModel          string
+	KeycloakClientID           string
+	KeycloakClientSecret       string
+	KeycloakRealm              string
+	KeycloakURL                string
+	AppBaseURL                 string
+	PostgresURL                string
+	SMTPHost                   string
+	SMTPPort                   string
+	SMTPFrom                   string
+	SMTPPassword               string
+	PostPollIntervalMs         int
+	AppEnv                     string // EnvDevelopment or EnvProduction
+	LogLevel                   slog.Level
+	EnableArcticShift          bool
+	SearchAPIURL               string
+	OpenAIAPIKey               string
+	OpenAIModel                string
+	WeeklySmartGenerationLimit int
+	GlobalGenerationLimit      int
 }
 
 var Config AppConfig
@@ -53,6 +55,8 @@ func LoadConfig() {
 	cfg.SearchAPIURL = loadRequired("SEARCH_API_URL")
 	cfg.OpenAIAPIKey = loadRequired("OPENAI_API_KEY")
 	cfg.OpenAIModel = loadOptional("OPENAI_MODEL", "gpt-5.4")
+	cfg.WeeklySmartGenerationLimit = parseIntEnv(loadOptional("WEEKLY_SMART_FILTER_GENERATION_LIMIT", "3"))
+	cfg.GlobalGenerationLimit = parseIntEnv(loadOptional("GLOBAL_SMART_FILTER_GENERATION_LIMIT", "200"))
 
 	lvlString := loadOptional("LOG_LEVEL", "INFO")
 	var err error
@@ -63,6 +67,7 @@ func LoadConfig() {
 	}
 
 	Config = cfg
+	RateLimits = buildRateLimits()
 }
 
 func parseLogLevel(s string) (slog.Level, error) {
