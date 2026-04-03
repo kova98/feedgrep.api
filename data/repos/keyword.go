@@ -59,7 +59,8 @@ func (r *KeywordRepo) GetKeywordsByUserID(userID uuid.UUID) ([]data.Keyword, err
 	var keywords []data.Keyword
 	query := `
 		SELECT k.id, k.user_id, k.keyword, k.active, k.match_mode, k.filters, k.created_at, k.updated_at,
-		       COUNT(m.id) AS hit_count
+		       COUNT(m.id) AS hit_count,
+		       MAX(m.created_at) AS last_matched_at
 		FROM keywords k
 		LEFT JOIN matches m ON m.keyword_id = k.id
 		WHERE k.user_id = $1

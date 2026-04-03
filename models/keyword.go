@@ -348,13 +348,14 @@ func fromDataSmartCondition(condition data.SmartCondition) SmartCondition {
 }
 
 type Keyword struct {
-	ID        int             `json:"id"`
-	UserID    uuid.UUID       `json:"userId"`
-	Keyword   string          `json:"keyword"`
-	Active    bool            `json:"active"`
-	MatchMode enums.MatchMode `json:"matchMode"`
-	Filters   *KeywordFilters `json:"filters,omitempty"`
-	HitCount  int             `json:"hitCount"`
+	ID            int             `json:"id"`
+	UserID        uuid.UUID       `json:"userId"`
+	Keyword       string          `json:"keyword"`
+	Active        bool            `json:"active"`
+	MatchMode     enums.MatchMode `json:"matchMode"`
+	Filters       *KeywordFilters `json:"filters,omitempty"`
+	HitCount      int             `json:"hitCount"`
+	LastMatchedAt *time.Time      `json:"lastMatchedAt,omitempty"`
 }
 
 type GetKeywordsResponse struct {

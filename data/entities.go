@@ -28,16 +28,17 @@ type RateLimitCounter struct {
 }
 
 type Keyword struct {
-	ID         int             `db:"id"`
-	UserID     uuid.UUID       `db:"user_id"`
-	Keyword    string          `db:"keyword"`
-	Active     bool            `db:"active"`
-	MatchMode  enums.MatchMode `db:"match_mode"`
-	FiltersRaw json.RawMessage `db:"filters"`
-	Filters    KeywordFilters  `db:"-"`
-	HitCount   int             `db:"hit_count"`
-	CreatedAt  time.Time       `db:"created_at"`
-	UpdatedAt  time.Time       `db:"updated_at"`
+	ID            int             `db:"id"`
+	UserID        uuid.UUID       `db:"user_id"`
+	Keyword       string          `db:"keyword"`
+	Active        bool            `db:"active"`
+	MatchMode     enums.MatchMode `db:"match_mode"`
+	FiltersRaw    json.RawMessage `db:"filters"`
+	Filters       KeywordFilters  `db:"-"`
+	HitCount      int             `db:"hit_count"`
+	LastMatchedAt *time.Time      `db:"last_matched_at"`
+	CreatedAt     time.Time       `db:"created_at"`
+	UpdatedAt     time.Time       `db:"updated_at"`
 }
 
 type KeywordFilters struct {

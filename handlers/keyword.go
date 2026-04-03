@@ -133,13 +133,14 @@ func (h *KeywordHandler) GetKeywords(w http.ResponseWriter, r *http.Request) Res
 	for _, k := range keywords {
 		filters := models.FromDataFilters(k.Filters)
 		res.Keywords = append(res.Keywords, models.Keyword{
-			ID:        k.ID,
-			UserID:    k.UserID,
-			Keyword:   k.Keyword,
-			Active:    k.Active,
-			MatchMode: k.MatchMode,
-			Filters:   &filters,
-			HitCount:  k.HitCount,
+			ID:            k.ID,
+			UserID:        k.UserID,
+			Keyword:       k.Keyword,
+			Active:        k.Active,
+			MatchMode:     k.MatchMode,
+			Filters:       &filters,
+			HitCount:      k.HitCount,
+			LastMatchedAt: k.LastMatchedAt,
 		})
 	}
 
