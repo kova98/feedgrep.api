@@ -24,8 +24,8 @@ func (r *MatchRepo) CreateMatches(matches []data.Match) error {
 	}
 
 	query := `
-		INSERT INTO matches (user_id, keyword_id, source, hash, data, created_at)
-		VALUES (:user_id, :keyword_id, :source, :hash, :data, now())
+		INSERT INTO matches (user_id, keyword_id, source, hash, data, created_at, seen_at)
+		VALUES (:user_id, :keyword_id, :source, :hash, :data, now(), NULL)
 		ON CONFLICT (hash) DO NOTHING`
 
 	_, err := r.db.NamedExec(query, matches)
@@ -39,7 +39,7 @@ func (r *MatchRepo) CreateMatches(matches []data.Match) error {
 func (r *MatchRepo) GetUnnotifiedMatches() ([]data.Match, error) {
 	var matches []data.Match
 	query := `
-		SELECT id, user_id, keyword_id, source, hash, notified_at, data, created_at
+		SELECT id, user_id, keyword_id, source, hash, notified_at, seen_at, data, created_at
 		FROM matches
 		WHERE notified_at IS NULL
 		ORDER BY created_at ASC`
@@ -74,7 +74,7 @@ func (r *MatchRepo) MarkNotified(ids []int64, notifiedAt time.Time) error {
 func (r *MatchRepo) GetMatchesByUserID(userID uuid.UUID, limit, offset int) ([]data.MatchWithKeyword, int, error) {
 	var matches []data.MatchWithKeyword
 	query := `
-		SELECT m.id, m.user_id, m.keyword_id, m.source, m.hash, m.notified_at, m.data, m.created_at,
+		SELECT m.id, m.user_id, m.keyword_id, m.source, m.hash, m.notified_at, m.seen_at, m.data, m.created_at,
 		       k.keyword
 		FROM matches m
 		LEFT JOIN keywords k ON k.id = m.keyword_id
@@ -97,19 +97,20 @@ func (r *MatchRepo) GetMatchesByUserID(userID uuid.UUID, limit, offset int) ([]d
 	return matches, total, nil
 }
 
-func (r *MatchRepo) GetMatchesByKeyword(userID uuid.UUID, keywordID, limit int) ([]data.MatchWithKeyword, error) {
+func (r *MatchRepo) GetMatchesByKeyword(userID uuid.UUID, keywordID, limit int, unseenOnly bool) ([]data.MatchWithKeyword, error) {
 	var matches []data.MatchWithKeyword
 	query := `
-		SELECT m.id, m.user_id, m.keyword_id, m.source, m.hash, m.notified_at, m.data, m.created_at,
+		SELECT m.id, m.user_id, m.keyword_id, m.source, m.hash, m.notified_at, m.seen_at, m.data, m.created_at,
 		       k.keyword
 		FROM matches m
 		LEFT JOIN keywords k ON k.id = m.keyword_id
 		WHERE m.user_id = $1
 		  AND m.keyword_id = $2
+		  AND ($4 = false OR m.seen_at IS NULL)
 		ORDER BY m.created_at DESC
 		LIMIT $3`
 
-	if err := r.db.Select(&matches, query, userID, keywordID, limit); err != nil {
+	if err := r.db.Select(&matches, query, userID, keywordID, limit, unseenOnly); err != nil {
 		return nil, fmt.Errorf("get matches by keyword: %w", err)
 	}
 
@@ -136,6 +137,28 @@ func (r *MatchRepo) GetMatchedSubredditsByKeyword(userID uuid.UUID, keywordID, l
 	}
 
 	return rows, nil
+}
+
+func (r *MatchRepo) UpdateSeen(userID uuid.UUID, matchID int, seen bool) (bool, error) {
+	query := `
+		UPDATE matches
+		SET seen_at = CASE WHEN $3 THEN now() ELSE NULL END
+		WHERE id = $1 AND user_id = $2`
+
+	result, err := r.db.Exec(query, matchID, userID, seen)
+	if err != nil {
+		return false, fmt.Errorf("update match seen state: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("get rows affected for seen state update: %w", err)
+	}
+	if rowsAffected == 0 {
+		return false, nil
+	}
+
+	return true, nil
 }
 
 func (r *MatchRepo) GetDailyMatchCountsByKeyword(userID uuid.UUID, keywordID, days int) ([]data.KeywordDailyMatchCountRow, error) {

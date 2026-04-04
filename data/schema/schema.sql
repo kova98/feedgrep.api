@@ -1,5 +1,5 @@
 
-\restrict QcCj16v6Xw19NeKgBqu8Ja0EsjRDk4z6ZEqfiLBOvaal1Xr7hC5lpwNFv3ef6C1
+\restrict yQx7eKF69kgOlsd3shlthPaf1kDYYgSYp7D0b1XmFrUcLudecBSBDSj6oSwt1IS
 
 SELECT pg_catalog.set_config('search_path', '', false);
 
@@ -26,7 +26,8 @@ CREATE TABLE public.keywords (
     active boolean DEFAULT true NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    filters jsonb DEFAULT '{}'::jsonb NOT NULL
+    filters jsonb DEFAULT '{}'::jsonb NOT NULL,
+    match_mode text DEFAULT 'broad'::text NOT NULL
 );
 
 CREATE SEQUENCE public.keywords_id_seq
@@ -47,7 +48,8 @@ CREATE TABLE public.matches (
     hash text NOT NULL,
     notified_at timestamp with time zone,
     data jsonb DEFAULT '{}'::jsonb NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    seen_at timestamp with time zone
 );
 
 CREATE SEQUENCE public.matches_id_seq
@@ -58,6 +60,15 @@ CREATE SEQUENCE public.matches_id_seq
     CACHE 1;
 
 ALTER SEQUENCE public.matches_id_seq OWNED BY public.matches.id;
+
+CREATE TABLE public.rate_limits (
+    user_id uuid NOT NULL,
+    rate_id text NOT NULL,
+    window_key text NOT NULL,
+    count integer DEFAULT 0 NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
 
 CREATE TABLE public.users (
     id uuid NOT NULL,
@@ -81,6 +92,9 @@ ALTER TABLE ONLY public.keywords
 ALTER TABLE ONLY public.matches
     ADD CONSTRAINT matches_pkey PRIMARY KEY (id);
 
+ALTER TABLE ONLY public.rate_limits
+    ADD CONSTRAINT rate_limits_pkey PRIMARY KEY (user_id, rate_id, window_key);
+
 ALTER TABLE ONLY public.users
     ADD CONSTRAINT users_email_key UNIQUE (email);
 
@@ -101,6 +115,8 @@ CREATE INDEX idx_matches_source ON public.matches USING btree (source);
 
 CREATE INDEX idx_matches_user_notified_at ON public.matches USING btree (user_id, notified_at);
 
+CREATE INDEX idx_rate_limits_lookup ON public.rate_limits USING btree (user_id, rate_id, window_key);
+
 ALTER TABLE ONLY public.keywords
     ADD CONSTRAINT keywords_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
 
@@ -110,5 +126,8 @@ ALTER TABLE ONLY public.matches
 ALTER TABLE ONLY public.matches
     ADD CONSTRAINT matches_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
 
-\unrestrict QcCj16v6Xw19NeKgBqu8Ja0EsjRDk4z6ZEqfiLBOvaal1Xr7hC5lpwNFv3ef6C1
+ALTER TABLE ONLY public.rate_limits
+    ADD CONSTRAINT rate_limits_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+\unrestrict yQx7eKF69kgOlsd3shlthPaf1kDYYgSYp7D0b1XmFrUcLudecBSBDSj6oSwt1IS
 

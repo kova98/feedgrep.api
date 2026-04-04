@@ -105,6 +105,7 @@ func main() {
 	mux.HandleFunc("GET /keywords/{id}/historical-stream", privateHTTP(keywords.StreamHistoricalSmartMatches))
 
 	mux.HandleFunc("GET /matches", private(matches.GetMatches))
+	mux.HandleFunc("PUT /matches/{id}/seen", private(matches.UpdateMatchSeen))
 
 	mux.HandleFunc("POST /feedback", private(feedback.SubmitFeedback))
 

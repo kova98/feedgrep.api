@@ -55,11 +55,12 @@ func (r *KeywordRepo) CreateKeyword(k data.Keyword) (int, error) {
 	return id, nil
 }
 
-func (r *KeywordRepo) GetKeywordsByUserID(userID uuid.UUID) ([]data.Keyword, error) {
-	var keywords []data.Keyword
+func (r *KeywordRepo) GetKeywordsByUserID(userID uuid.UUID) ([]data.KeywordWithStats, error) {
+	var keywords []data.KeywordWithStats
 	query := `
 		SELECT k.id, k.user_id, k.keyword, k.active, k.match_mode, k.filters, k.created_at, k.updated_at,
 		       COUNT(m.id) AS hit_count,
+		       COUNT(m.id) FILTER (WHERE m.seen_at IS NULL) AS unseen_count,
 		       MAX(m.created_at) AS last_matched_at
 		FROM keywords k
 		LEFT JOIN matches m ON m.keyword_id = k.id
@@ -81,11 +82,12 @@ func (r *KeywordRepo) GetKeywordsByUserID(userID uuid.UUID) ([]data.Keyword, err
 	return keywords, nil
 }
 
-func (r *KeywordRepo) GetKeywordByID(id int, userID uuid.UUID) (*data.Keyword, error) {
-	var keyword data.Keyword
+func (r *KeywordRepo) GetKeywordByID(id int, userID uuid.UUID) (*data.KeywordWithStats, error) {
+	var keyword data.KeywordWithStats
 	query := `
 		SELECT k.id, k.user_id, k.keyword, k.active, k.match_mode, k.filters, k.created_at, k.updated_at,
 		       COUNT(m.id) AS hit_count,
+		       COUNT(m.id) FILTER (WHERE m.seen_at IS NULL) AS unseen_count,
 		       MAX(m.created_at) AS last_matched_at
 		FROM keywords k
 		LEFT JOIN matches m ON m.keyword_id = k.id

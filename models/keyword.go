@@ -355,6 +355,7 @@ type Keyword struct {
 	MatchMode     enums.MatchMode `json:"matchMode"`
 	Filters       *KeywordFilters `json:"filters,omitempty"`
 	HitCount      int             `json:"hitCount"`
+	UnseenCount   int             `json:"unseenCount"`
 	LastMatchedAt *time.Time      `json:"lastMatchedAt,omitempty"`
 }
 

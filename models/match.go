@@ -7,6 +7,7 @@ type Match struct {
 	Keyword   string     `json:"keyword"`
 	Source    string     `json:"source"`
 	CreatedAt time.Time  `json:"createdAt"`
+	SeenAt    *time.Time `json:"seenAt,omitempty"`
 	Data      RedditData `json:"data"`
 }
 
@@ -24,4 +25,8 @@ type GetMatchesResponse struct {
 	Total   int     `json:"total"`
 	Page    int     `json:"page"`
 	PerPage int     `json:"perPage"`
+}
+
+type UpdateMatchSeenRequest struct {
+	Seen bool `json:"seen"`
 }

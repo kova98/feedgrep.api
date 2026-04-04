@@ -49,6 +49,7 @@ func (h *MatchHandler) GetMatches(w http.ResponseWriter, r *http.Request) Result
 			Keyword:   m.Keyword,
 			Source:    string(m.Source),
 			CreatedAt: m.CreatedAt,
+			SeenAt:    m.SeenAt,
 			Data: models.RedditData{
 				Subreddit: redditData.Subreddit,
 				Author:    redditData.Author,
@@ -61,4 +62,29 @@ func (h *MatchHandler) GetMatches(w http.ResponseWriter, r *http.Request) Result
 	}
 
 	return Ok(res)
+}
+
+func (h *MatchHandler) UpdateMatchSeen(w http.ResponseWriter, r *http.Request) Result {
+	user := r.Context().Value("user").(data.User)
+
+	idStr := r.PathValue("id")
+	matchID, err := strconv.Atoi(idStr)
+	if err != nil {
+		return BadRequest("Invalid match ID.")
+	}
+
+	var req models.UpdateMatchSeenRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return BadRequest("Invalid request.")
+	}
+
+	found, err := h.repo.UpdateSeen(user.ID, matchID, req.Seen)
+	if err != nil {
+		return InternalError(err, "update match seen state: ")
+	}
+	if !found {
+		return NotFound("Match not found.")
+	}
+
+	return Ok(nil)
 }

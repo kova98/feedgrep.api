@@ -18,6 +18,13 @@ type KeywordNotification struct {
 	Filters    KeywordFilters  `db:"-"`
 }
 
+type KeywordWithStats struct {
+	Keyword
+	HitCount      int        `db:"hit_count"`
+	UnseenCount   int        `db:"unseen_count"`
+	LastMatchedAt *time.Time `db:"last_matched_at"`
+}
+
 type MatchWithKeyword struct {
 	Match
 	Keyword string `db:"keyword"`

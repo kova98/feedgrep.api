@@ -135,11 +135,12 @@ func (h *KeywordHandler) GetKeywords(w http.ResponseWriter, r *http.Request) Res
 		res.Keywords = append(res.Keywords, models.Keyword{
 			ID:            k.ID,
 			UserID:        k.UserID,
-			Keyword:       k.Keyword,
+			Keyword:       k.Keyword.Keyword,
 			Active:        k.Active,
 			MatchMode:     k.MatchMode,
 			Filters:       &filters,
 			HitCount:      k.HitCount,
+			UnseenCount:   k.UnseenCount,
 			LastMatchedAt: k.LastMatchedAt,
 		})
 	}
@@ -168,11 +169,12 @@ func (h *KeywordHandler) GetKeyword(w http.ResponseWriter, r *http.Request) Resu
 	res := models.Keyword{
 		ID:            keyword.ID,
 		UserID:        keyword.UserID,
-		Keyword:       keyword.Keyword,
+		Keyword:       keyword.Keyword.Keyword,
 		Active:        keyword.Active,
 		MatchMode:     keyword.MatchMode,
 		Filters:       &filters,
 		HitCount:      keyword.HitCount,
+		UnseenCount:   keyword.UnseenCount,
 		LastMatchedAt: keyword.LastMatchedAt,
 	}
 
@@ -297,7 +299,18 @@ func (h *KeywordHandler) GetKeywordMatches(w http.ResponseWriter, r *http.Reques
 		return NotFound("Keyword not found.")
 	}
 
-	matches, err := h.matchRepo.GetMatchesByKeyword(user.ID, keywordID, 10)
+	limit := 10
+	if limitStr := strings.TrimSpace(r.URL.Query().Get("limit")); limitStr != "" {
+		parsedLimit, err := strconv.Atoi(limitStr)
+		if err != nil || parsedLimit < 1 || parsedLimit > 200 {
+			return BadRequest("Invalid limit.")
+		}
+		limit = parsedLimit
+	}
+
+	unseenOnly := strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("unseen")), "true")
+
+	matches, err := h.matchRepo.GetMatchesByKeyword(user.ID, keywordID, limit, unseenOnly)
 	if err != nil {
 		return InternalError(err, "get keyword matches: ")
 	}
@@ -318,6 +331,7 @@ func (h *KeywordHandler) GetKeywordMatches(w http.ResponseWriter, r *http.Reques
 			Keyword:   m.Keyword,
 			Source:    string(m.Source),
 			CreatedAt: m.CreatedAt,
+			SeenAt:    m.SeenAt,
 			Data: models.RedditData{
 				Subreddit: redditData.Subreddit,
 				Author:    redditData.Author,
