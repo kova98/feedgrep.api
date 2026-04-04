@@ -372,6 +372,15 @@ type GetKeywordMatchedSubredditsResponse struct {
 	Matches []MatchedSubreddit `json:"matches"`
 }
 
+type KeywordDailyMatchCount struct {
+	Day   time.Time `json:"day"`
+	Count int       `json:"count"`
+}
+
+type GetKeywordMatchActivityResponse struct {
+	Days []KeywordDailyMatchCount `json:"days"`
+}
+
 type GenerateSmartFilterRequest struct {
 	Name   string `json:"name"`
 	Intent string `json:"intent"`

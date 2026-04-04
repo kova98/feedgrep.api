@@ -28,3 +28,8 @@ type MatchedSubredditSummary struct {
 	LastMatchedAt time.Time `db:"last_matched_at"`
 	MatchCount    int       `db:"match_count"`
 }
+
+type KeywordDailyMatchCountRow struct {
+	Day   time.Time `db:"day"`
+	Count int       `db:"count"`
+}

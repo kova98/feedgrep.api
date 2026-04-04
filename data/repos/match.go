@@ -97,6 +97,25 @@ func (r *MatchRepo) GetMatchesByUserID(userID uuid.UUID, limit, offset int) ([]d
 	return matches, total, nil
 }
 
+func (r *MatchRepo) GetMatchesByKeyword(userID uuid.UUID, keywordID, limit int) ([]data.MatchWithKeyword, error) {
+	var matches []data.MatchWithKeyword
+	query := `
+		SELECT m.id, m.user_id, m.keyword_id, m.source, m.hash, m.notified_at, m.data, m.created_at,
+		       k.keyword
+		FROM matches m
+		LEFT JOIN keywords k ON k.id = m.keyword_id
+		WHERE m.user_id = $1
+		  AND m.keyword_id = $2
+		ORDER BY m.created_at DESC
+		LIMIT $3`
+
+	if err := r.db.Select(&matches, query, userID, keywordID, limit); err != nil {
+		return nil, fmt.Errorf("get matches by keyword: %w", err)
+	}
+
+	return matches, nil
+}
+
 func (r *MatchRepo) GetMatchedSubredditsByKeyword(userID uuid.UUID, keywordID, limit int) ([]data.MatchedSubredditSummary, error) {
 	var rows []data.MatchedSubredditSummary
 	query := `
@@ -114,6 +133,33 @@ func (r *MatchRepo) GetMatchedSubredditsByKeyword(userID uuid.UUID, keywordID, l
 
 	if err := r.db.Select(&rows, query, userID, keywordID, enums.SourceArcticShift, limit); err != nil {
 		return nil, fmt.Errorf("get matched subreddits by keyword: %w", err)
+	}
+
+	return rows, nil
+}
+
+func (r *MatchRepo) GetDailyMatchCountsByKeyword(userID uuid.UUID, keywordID, days int) ([]data.KeywordDailyMatchCountRow, error) {
+	var rows []data.KeywordDailyMatchCountRow
+	query := `
+		WITH days AS (
+			SELECT generate_series(
+				(current_date - ($3::int - 1) * interval '1 day')::date,
+				current_date::date,
+				interval '1 day'
+			)::date AS day
+		)
+		SELECT days.day AS day,
+		       COALESCE(COUNT(m.id), 0) AS count
+		FROM days
+		LEFT JOIN matches m
+		  ON m.user_id = $1
+		 AND m.keyword_id = $2
+		 AND (m.created_at AT TIME ZONE 'UTC')::date = days.day
+		GROUP BY days.day
+		ORDER BY days.day ASC`
+
+	if err := r.db.Select(&rows, query, userID, keywordID, days); err != nil {
+		return nil, fmt.Errorf("get daily match counts by keyword: %w", err)
 	}
 
 	return rows, nil

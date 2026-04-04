@@ -83,7 +83,14 @@ func (r *KeywordRepo) GetKeywordsByUserID(userID uuid.UUID) ([]data.Keyword, err
 
 func (r *KeywordRepo) GetKeywordByID(id int, userID uuid.UUID) (*data.Keyword, error) {
 	var keyword data.Keyword
-	query := "SELECT * FROM keywords WHERE id = $1 AND user_id = $2"
+	query := `
+		SELECT k.id, k.user_id, k.keyword, k.active, k.match_mode, k.filters, k.created_at, k.updated_at,
+		       COUNT(m.id) AS hit_count,
+		       MAX(m.created_at) AS last_matched_at
+		FROM keywords k
+		LEFT JOIN matches m ON m.keyword_id = k.id
+		WHERE k.id = $1 AND k.user_id = $2
+		GROUP BY k.id`
 
 	err := r.db.Get(&keyword, query, id, userID)
 	if err != nil {

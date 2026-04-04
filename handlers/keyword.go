@@ -166,12 +166,14 @@ func (h *KeywordHandler) GetKeyword(w http.ResponseWriter, r *http.Request) Resu
 
 	filters := models.FromDataFilters(keyword.Filters)
 	res := models.Keyword{
-		ID:        keyword.ID,
-		UserID:    keyword.UserID,
-		Keyword:   keyword.Keyword,
-		Active:    keyword.Active,
-		MatchMode: keyword.MatchMode,
-		Filters:   &filters,
+		ID:            keyword.ID,
+		UserID:        keyword.UserID,
+		Keyword:       keyword.Keyword,
+		Active:        keyword.Active,
+		MatchMode:     keyword.MatchMode,
+		Filters:       &filters,
+		HitCount:      keyword.HitCount,
+		LastMatchedAt: keyword.LastMatchedAt,
 	}
 
 	return Ok(res)
@@ -272,6 +274,93 @@ func (h *KeywordHandler) GetKeywordMatchedSubreddits(w http.ResponseWriter, r *h
 			Subreddit:     m.Subreddit,
 			LastMatchedAt: m.LastMatchedAt,
 			MatchCount:    m.MatchCount,
+		})
+	}
+
+	return Ok(out)
+}
+
+func (h *KeywordHandler) GetKeywordMatches(w http.ResponseWriter, r *http.Request) Result {
+	user := r.Context().Value("user").(data.User)
+
+	idStr := r.PathValue("id")
+	keywordID, err := strconv.Atoi(idStr)
+	if err != nil {
+		return BadRequest("Invalid keyword ID.")
+	}
+
+	keyword, err := h.repo.GetKeywordByID(keywordID, user.ID)
+	if err != nil {
+		return InternalError(err, "get keyword: ")
+	}
+	if keyword == nil {
+		return NotFound("Keyword not found.")
+	}
+
+	matches, err := h.matchRepo.GetMatchesByKeyword(user.ID, keywordID, 10)
+	if err != nil {
+		return InternalError(err, "get keyword matches: ")
+	}
+
+	out := models.GetMatchesResponse{
+		Matches: make([]models.Match, 0, len(matches)),
+		Total:   len(matches),
+		Page:    1,
+		PerPage: len(matches),
+	}
+
+	for _, m := range matches {
+		var redditData data.RedditData
+		_ = json.Unmarshal(m.DataRaw, &redditData)
+
+		out.Matches = append(out.Matches, models.Match{
+			ID:        m.ID,
+			Keyword:   m.Keyword,
+			Source:    string(m.Source),
+			CreatedAt: m.CreatedAt,
+			Data: models.RedditData{
+				Subreddit: redditData.Subreddit,
+				Author:    redditData.Author,
+				Title:     redditData.Title,
+				Body:      redditData.Body,
+				Permalink: redditData.Permalink,
+				IsComment: redditData.IsComment,
+			},
+		})
+	}
+
+	return Ok(out)
+}
+
+func (h *KeywordHandler) GetKeywordMatchActivity(w http.ResponseWriter, r *http.Request) Result {
+	user := r.Context().Value("user").(data.User)
+
+	idStr := r.PathValue("id")
+	keywordID, err := strconv.Atoi(idStr)
+	if err != nil {
+		return BadRequest("Invalid keyword ID.")
+	}
+
+	keyword, err := h.repo.GetKeywordByID(keywordID, user.ID)
+	if err != nil {
+		return InternalError(err, "get keyword: ")
+	}
+	if keyword == nil {
+		return NotFound("Keyword not found.")
+	}
+
+	rows, err := h.matchRepo.GetDailyMatchCountsByKeyword(user.ID, keywordID, 7)
+	if err != nil {
+		return InternalError(err, "get keyword match activity: ")
+	}
+
+	out := models.GetKeywordMatchActivityResponse{
+		Days: make([]models.KeywordDailyMatchCount, 0, len(rows)),
+	}
+	for _, row := range rows {
+		out.Days = append(out.Days, models.KeywordDailyMatchCount{
+			Day:   row.Day,
+			Count: row.Count,
 		})
 	}
 

@@ -99,6 +99,8 @@ func main() {
 	mux.HandleFunc("GET /keywords/{id}", private(keywords.GetKeyword))
 	mux.HandleFunc("PUT /keywords/{id}", private(keywords.UpdateKeyword))
 	mux.HandleFunc("DELETE /keywords/{id}", private(keywords.DeleteKeyword))
+	mux.HandleFunc("GET /keywords/{id}/matches", private(keywords.GetKeywordMatches))
+	mux.HandleFunc("GET /keywords/{id}/match-activity", private(keywords.GetKeywordMatchActivity))
 	mux.HandleFunc("GET /keywords/{id}/matched-subreddits", private(keywords.GetKeywordMatchedSubreddits))
 	mux.HandleFunc("GET /keywords/{id}/historical-stream", privateHTTP(keywords.StreamHistoricalSmartMatches))
 
