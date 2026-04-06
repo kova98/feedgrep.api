@@ -142,6 +142,7 @@ func (h *KeywordHandler) GetKeywords(w http.ResponseWriter, r *http.Request) Res
 			HitCount:      k.HitCount,
 			UnseenCount:   k.UnseenCount,
 			LastMatchedAt: k.LastMatchedAt,
+			CreatedAt:     k.CreatedAt,
 		})
 	}
 
@@ -176,6 +177,7 @@ func (h *KeywordHandler) GetKeyword(w http.ResponseWriter, r *http.Request) Resu
 		HitCount:      keyword.HitCount,
 		UnseenCount:   keyword.UnseenCount,
 		LastMatchedAt: keyword.LastMatchedAt,
+		CreatedAt:     keyword.CreatedAt,
 	}
 
 	return Ok(res)

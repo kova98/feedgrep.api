@@ -357,6 +357,7 @@ type Keyword struct {
 	HitCount      int             `json:"hitCount"`
 	UnseenCount   int             `json:"unseenCount"`
 	LastMatchedAt *time.Time      `json:"lastMatchedAt,omitempty"`
+	CreatedAt     time.Time       `json:"createdAt"`
 }
 
 type GetKeywordsResponse struct {
