@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/kova98/feedgrep.api/data"
 	"github.com/kova98/feedgrep.api/data/repos"
+	"github.com/kova98/feedgrep.api/monitor"
 	"github.com/kova98/feedgrep.api/notifiers"
 	"github.com/pkg/errors"
 )
@@ -16,13 +17,15 @@ type Notifier struct {
 	matchRepo *repos.MatchRepo
 	usersRepo *repos.UserRepo
 	mailer    *notifiers.Mailer
+	monitor   *monitor.NotificationsMonitor
 }
 
-func NewNotifier(mailer *notifiers.Mailer, matchRepo *repos.MatchRepo, usersRepo *repos.UserRepo) *Notifier {
+func NewNotifier(mailer *notifiers.Mailer, matchRepo *repos.MatchRepo, usersRepo *repos.UserRepo, notificationsMonitor *monitor.NotificationsMonitor) *Notifier {
 	return &Notifier{
 		matchRepo: matchRepo,
 		usersRepo: usersRepo,
 		mailer:    mailer,
+		monitor:   notificationsMonitor,
 	}
 }
 
@@ -91,6 +94,7 @@ func (n *Notifier) notifyUsers() error {
 				slog.Error("notify users: send match notification", "userID", userID, "error", err)
 				continue
 			}
+			n.monitor.MatchEmailSent()
 			if err = n.matchRepo.MarkNotified([]int64{int64(matches[0].ID)}, time.Now()); err != nil {
 				slog.Error("notify users: mark match as notified", "userID", userID, "error", err)
 			}
@@ -107,6 +111,7 @@ func (n *Notifier) notifyUsers() error {
 			slog.Error("notify users: send digest notification", "userID", userID, "error", err)
 			continue
 		}
+		n.monitor.DigestEmailSent()
 
 		matchIDs := make([]int64, 0, len(matches))
 		for _, match := range matches {

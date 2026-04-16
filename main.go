@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"embed"
-	"encoding/json"
 	"log/slog"
 	"net/http"
 	"os"
@@ -29,6 +28,7 @@ import (
 
 var (
 	auth           *handlers.AuthHandler
+	apiMonitor     *monitor.APIMonitor
 	UserContextKey = "user"
 )
 
@@ -75,7 +75,14 @@ func main() {
 
 	arcticShiftMonitor := monitor.NewArcticShiftMonitor()
 	arcticShiftMonitor.Register(prometheus.DefaultRegisterer)
-	arcticShiftPoller := sources.NewArcticShiftPoller(logger, keywordRepo, matchRepo, arcticShiftMonitor)
+	apiMonitor = monitor.NewAPIMonitor()
+	apiMonitor.Register(prometheus.DefaultRegisterer)
+	notificationsMonitor := monitor.NewNotificationsMonitor()
+	notificationsMonitor.Register(prometheus.DefaultRegisterer)
+	keywordMonitor := monitor.NewKeywordMonitor()
+	keywordMonitor.Register(prometheus.DefaultRegisterer)
+
+	arcticShiftPoller := sources.NewArcticShiftPoller(logger, keywordRepo, matchRepo, arcticShiftMonitor, keywordMonitor)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	if config.Config.EnableArcticShift {
@@ -89,32 +96,29 @@ func main() {
 		config.Config.SMTPPassword,
 		config.Config.AppBaseURL,
 	)
-	notifier := NewNotifier(mailer, matchRepo, usersRepo)
+	notifier := NewNotifier(mailer, matchRepo, usersRepo, notificationsMonitor)
 	go notifier.Start(ctx)
 
 	feedback := handlers.NewFeedbackHandler(mailer)
 
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("GET /metrics", promhttp.Handler().ServeHTTP)
+	mux.Handle("GET /metrics", promhttp.Handler())
 
-	mux.HandleFunc("POST /users/init", private(users.InitializeUser))
-
-	mux.HandleFunc("POST /keywords", private(keywords.CreateKeyword))
-	mux.HandleFunc("GET /keywords", private(keywords.GetKeywords))
-	mux.HandleFunc("POST /keywords/generate-smart-filter", private(keywords.GenerateSmartFilter))
-	mux.HandleFunc("GET /keywords/{id}", private(keywords.GetKeyword))
-	mux.HandleFunc("PUT /keywords/{id}", private(keywords.UpdateKeyword))
-	mux.HandleFunc("DELETE /keywords/{id}", private(keywords.DeleteKeyword))
-	mux.HandleFunc("GET /keywords/{id}/matches", private(keywords.GetKeywordMatches))
-	mux.HandleFunc("GET /keywords/{id}/match-activity", private(keywords.GetKeywordMatchActivity))
-	mux.HandleFunc("GET /keywords/{id}/matched-subreddits", private(keywords.GetKeywordMatchedSubreddits))
-	mux.HandleFunc("GET /keywords/{id}/historical-stream", privateHTTP(keywords.StreamHistoricalSmartMatches))
-
-	mux.HandleFunc("GET /matches", private(matches.GetMatches))
-	mux.HandleFunc("PUT /matches/{id}/seen", private(matches.UpdateMatchSeen))
-
-	mux.HandleFunc("POST /feedback", private(feedback.SubmitFeedback))
+	mux.Handle("POST /users/init", private(users.InitializeUser))
+	mux.Handle("POST /keywords", private(keywords.CreateKeyword))
+	mux.Handle("GET /keywords", private(keywords.GetKeywords))
+	mux.Handle("POST /keywords/generate-smart-filter", private(keywords.GenerateSmartFilter))
+	mux.Handle("GET /keywords/{id}", private(keywords.GetKeyword))
+	mux.Handle("PUT /keywords/{id}", private(keywords.UpdateKeyword))
+	mux.Handle("DELETE /keywords/{id}", private(keywords.DeleteKeyword))
+	mux.Handle("GET /keywords/{id}/matches", private(keywords.GetKeywordMatches))
+	mux.Handle("GET /keywords/{id}/match-activity", private(keywords.GetKeywordMatchActivity))
+	mux.Handle("GET /keywords/{id}/matched-subreddits", private(keywords.GetKeywordMatchedSubreddits))
+	mux.Handle("GET /keywords/{id}/historical-stream", privateHTTP(keywords.StreamHistoricalSmartMatches))
+	mux.Handle("GET /matches", private(matches.GetMatches))
+	mux.Handle("PUT /matches/{id}/seen", private(matches.UpdateMatchSeen))
+	mux.Handle("POST /feedback", private(feedback.SubmitFeedback))
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
@@ -133,78 +137,5 @@ func main() {
 	err = http.ListenAndServe(":8080", withCORS(mux))
 	if err != nil {
 		slog.Error("failed to start server", "error", err)
-	}
-}
-
-func withCORS(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, x-api-key")
-
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
-}
-
-func private(handler handlers.Handler) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		keyHeader := r.Header.Get("x-api-key")
-		authHeader := r.Header.Get("Authorization")
-		result := auth.GetUser(r.Context(), keyHeader, authHeader)
-		if result.Code != http.StatusOK {
-			slog.Debug("unauthorized request", "path", r.URL.Path)
-			writeResult(w, result)
-			return
-		}
-
-		user := result.Body.(data.User)
-		ctx := context.WithValue(r.Context(), UserContextKey, user)
-
-		public(handler)(w, r.WithContext(ctx))
-	}
-}
-
-func privateHTTP(handler http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		keyHeader := r.Header.Get("x-api-key")
-		authHeader := r.Header.Get("Authorization")
-		result := auth.GetUser(r.Context(), keyHeader, authHeader)
-		if result.Code != http.StatusOK {
-			slog.Debug("unauthorized request", "path", r.URL.Path)
-			writeResult(w, result)
-			return
-		}
-
-		user := result.Body.(data.User)
-		ctx := context.WithValue(r.Context(), UserContextKey, user)
-		handler(w, r.WithContext(ctx))
-	}
-}
-
-func public(handler handlers.Handler) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		ts := time.Now()
-		res := handler(w, r)
-		elapsedMs := time.Since(ts).Milliseconds()
-		slog.Debug("req", "method", r.Method, "path", r.URL.Path, "code", res.Code, "elapsed", elapsedMs)
-		writeResult(w, res)
-	}
-}
-
-func writeResult(w http.ResponseWriter, res handlers.Result) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(res.Code)
-	if res.Body != nil {
-		if err := json.NewEncoder(w).Encode(res.Body); err != nil {
-			slog.Error("failed to encode response", "error", err)
-		}
-	}
-	if res.Code == http.StatusInternalServerError {
-		slog.Error("internal error", "error", res.Error.Error())
 	}
 }

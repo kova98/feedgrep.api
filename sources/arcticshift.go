@@ -33,7 +33,8 @@ type ArcticShiftPoller struct {
 	logger      *slog.Logger
 	keywordRepo *repos.KeywordRepo
 	matchRepo   *repos.MatchRepo
-	m           *monitor.ArcticShiftMonitor
+	am          *monitor.ArcticShiftMonitor
+	km          *monitor.KeywordMonitor
 	client      *http.Client
 
 	subscriptions       []keywordSubscription
@@ -43,14 +44,15 @@ type ArcticShiftPoller struct {
 	lastCommentCreated  int64
 }
 
-func NewArcticShiftPoller(logger *slog.Logger, keywordRepo *repos.KeywordRepo, matchRepo *repos.MatchRepo, arcticShiftMonitor *monitor.ArcticShiftMonitor) *ArcticShiftPoller {
+func NewArcticShiftPoller(logger *slog.Logger, keywordRepo *repos.KeywordRepo, matchRepo *repos.MatchRepo, arcticShiftMonitor *monitor.ArcticShiftMonitor, keywordMonitor *monitor.KeywordMonitor) *ArcticShiftPoller {
 	interval := time.Duration(config.Config.PostPollIntervalMs) * time.Millisecond
 
 	return &ArcticShiftPoller{
 		logger:              logger,
 		keywordRepo:         keywordRepo,
 		matchRepo:           matchRepo,
-		m:                   arcticShiftMonitor,
+		am:                  arcticShiftMonitor,
+		km:                  keywordMonitor,
 		client:              &http.Client{Timeout: 15 * time.Second},
 		postPollInterval:    interval,
 		commentPollInterval: interval,
@@ -102,13 +104,13 @@ func (h *ArcticShiftPoller) pollPosts() bool {
 	requestMs, err := h.fetchArcticShift(url, &resp)
 	processingStart := time.Now()
 	if err != nil {
-		h.m.PostRequestError(time.Duration(requestMs) * time.Millisecond)
+		h.am.PostRequestError(time.Duration(requestMs) * time.Millisecond)
 		h.logger.Info("poll posts", "request_ms", requestMs, "error", truncateError(err))
 		return false
 	}
 
 	if len(resp.Data) == 0 {
-		h.m.PostRequest(time.Duration(requestMs) * time.Millisecond)
+		h.am.PostRequest(time.Duration(requestMs) * time.Millisecond)
 		return true
 	}
 
@@ -126,7 +128,7 @@ func (h *ArcticShiftPoller) pollPosts() bool {
 		for _, sub := range h.subscriptions {
 			matchStart := time.Now()
 			subMatches, smartResult, err := sub.Matches(post.Title, post.Selftext, post.Subreddit)
-			h.m.PostMatchEvaluation(string(sub.matchMode), matchStart)
+			h.am.PostMatchEvaluation(string(sub.matchMode), matchStart)
 			if err != nil {
 				h.logger.Error("failed to check match", "error", err, "post_id", post.ID)
 				continue
@@ -153,7 +155,7 @@ func (h *ArcticShiftPoller) pollPosts() bool {
 	if newestPostUTC > h.lastPostCreated {
 		h.lastPostCreated = newestPostUTC
 	}
-	h.m.PostBatch(processedPosts, time.Duration(requestMs)*time.Millisecond, processingStart, newestPostUTC)
+	h.am.PostBatch(processedPosts, time.Duration(requestMs)*time.Millisecond, processingStart, newestPostUTC)
 	return true
 }
 
@@ -170,13 +172,13 @@ func (h *ArcticShiftPoller) pollComments() bool {
 	requestMs, err := h.fetchArcticShift(url, &resp)
 	processingStart := time.Now()
 	if err != nil {
-		h.m.CommentRequestError(time.Duration(requestMs) * time.Millisecond)
+		h.am.CommentRequestError(time.Duration(requestMs) * time.Millisecond)
 		h.logger.Debug("poll comments", "request_ms", requestMs, "error", truncateError(err))
 		return false
 	}
 
 	if len(resp.Data) == 0 {
-		h.m.CommentRequest(time.Duration(requestMs) * time.Millisecond)
+		h.am.CommentRequest(time.Duration(requestMs) * time.Millisecond)
 		return true
 	}
 
@@ -198,7 +200,7 @@ func (h *ArcticShiftPoller) pollComments() bool {
 		for _, sub := range h.subscriptions {
 			matchStart := time.Now()
 			subMatches, smartResult, err := sub.Matches("", comment.Body, comment.Subreddit)
-			h.m.CommentMatchEvaluation(string(sub.matchMode), matchStart)
+			h.am.CommentMatchEvaluation(string(sub.matchMode), matchStart)
 			if err != nil {
 				h.logger.Error("failed to check match", "error", err, "comment_id", comment.ID)
 				continue
@@ -224,7 +226,7 @@ func (h *ArcticShiftPoller) pollComments() bool {
 	}
 	h.lastCommentCreated = maxCreatedUTC
 
-	h.m.CommentBatch(processedComments, time.Duration(requestMs)*time.Millisecond, processingStart, newestCommentUTC)
+	h.am.CommentBatch(processedComments, time.Duration(requestMs)*time.Millisecond, processingStart, newestCommentUTC)
 	return true
 }
 
@@ -342,7 +344,7 @@ func (h *ArcticShiftPoller) loadKeywords() {
 	}
 
 	h.subscriptions = active
-	h.logger.Info("refreshed subscriptions", "count", len(h.subscriptions))
+	h.km.Active(len(h.subscriptions))
 }
 
 func buildMatchHash(userID uuid.UUID, keywordID int, source enums.Source, url string) string {
