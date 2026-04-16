@@ -82,6 +82,11 @@ Candidate design rules:
 - Prefer broad domain retrieval first, then let signals decide relevance.
 - Use all in candidate only when multiple concepts are truly essential to the intent.
 - Prefer any in candidate when several alternative phrasings or domain entry points are possible.
+- Do not turn candidate into an exhaustive bag-of-words list.
+- Avoid enumerating long lists of products, marketplaces, or generic extension terms in candidate.
+- Candidate should usually stay under 8 total retrieval phrases.
+- Prefer a few category or workflow phrases over many brand names.
+- If the user mentions many similar products, summarize them into a broader concept instead of listing all of them.
 
 Signal design rules:
 - Use positive signals for the actual intent:
@@ -294,8 +299,12 @@ func normalizeSmartFilter(filter *models.SmartFilter, name, intent string) error
 	if len(filter.Candidate.Where) == 0 {
 		filter.Candidate.Where = []string{"title", "body"}
 	}
+	normalizeSmartRule(&filter.Candidate)
 	if isEmptySmartCondition(filter.Candidate.Condition) {
 		return fmt.Errorf("generated filter is missing candidate.condition")
+	}
+	if err := validateSmartCandidate(filter.Candidate); err != nil {
+		return err
 	}
 	if filter.Signals == nil {
 		filter.Signals = []models.SmartSignal{}
@@ -312,4 +321,87 @@ func isEmptySmartCondition(condition models.SmartCondition) bool {
 		len(condition.All) == 0 &&
 		len(condition.AnyPhrase) == 0 &&
 		len(condition.Regex) == 0
+}
+
+const maxCandidatePhraseCount = 8
+
+func normalizeSmartRule(rule *models.SmartRule) {
+	rule.Where = normalizeCandidateWhere(rule.Where)
+	normalizeSmartCondition(&rule.Condition)
+}
+
+func normalizeSmartCondition(condition *models.SmartCondition) {
+	if condition == nil {
+		return
+	}
+
+	if len(condition.AnyPhrase) > 0 {
+		seen := make(map[string]struct{}, len(condition.AnyPhrase))
+		normalized := make([]string, 0, len(condition.AnyPhrase))
+		for _, phrase := range condition.AnyPhrase {
+			trimmed := strings.TrimSpace(phrase)
+			if trimmed == "" {
+				continue
+			}
+			key := strings.ToLower(trimmed)
+			if _, ok := seen[key]; ok {
+				continue
+			}
+			seen[key] = struct{}{}
+			normalized = append(normalized, trimmed)
+		}
+		condition.AnyPhrase = normalized
+	}
+
+	for i := range condition.Any {
+		normalizeSmartCondition(&condition.Any[i])
+	}
+	for i := range condition.All {
+		normalizeSmartCondition(&condition.All[i])
+	}
+}
+
+func normalizeCandidateWhere(where []string) []string {
+	if len(where) == 0 {
+		return []string{"title", "body"}
+	}
+
+	seen := map[string]struct{}{}
+	normalized := make([]string, 0, len(where))
+	for _, field := range where {
+		switch strings.TrimSpace(strings.ToLower(field)) {
+		case "title", "body", "subreddit":
+			if _, ok := seen[field]; ok {
+				continue
+			}
+			seen[field] = struct{}{}
+			normalized = append(normalized, field)
+		}
+	}
+
+	if len(normalized) == 0 {
+		return []string{"title", "body"}
+	}
+
+	return normalized
+}
+
+func validateSmartCandidate(rule models.SmartRule) error {
+	phraseCount := countSmartConditionPhrases(rule.Condition)
+	if phraseCount > maxCandidatePhraseCount {
+		return fmt.Errorf("generated candidate is too broad: %d retrieval phrases exceeds limit of %d", phraseCount, maxCandidatePhraseCount)
+	}
+
+	return nil
+}
+
+func countSmartConditionPhrases(condition models.SmartCondition) int {
+	count := len(condition.AnyPhrase)
+	for _, child := range condition.Any {
+		count += countSmartConditionPhrases(child)
+	}
+	for _, child := range condition.All {
+		count += countSmartConditionPhrases(child)
+	}
+	return count
 }
