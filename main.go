@@ -14,9 +14,12 @@ import (
 	"github.com/Nerzal/gocloak/v13"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/joho/godotenv/autoload"
+	"github.com/kova98/feedgrep.api/monitor"
 	"github.com/kova98/feedgrep.api/notifiers"
 	"github.com/kova98/feedgrep.api/sources"
 	_ "github.com/lib/pq"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/kova98/feedgrep.api/config"
 	"github.com/kova98/feedgrep.api/data"
@@ -70,7 +73,9 @@ func main() {
 	auth = handlers.NewAuthHandler(keycloakClient)
 	go auth.StartTokenTicker()
 
-	arcticShiftPoller := sources.NewArcticShiftPoller(logger, keywordRepo, matchRepo)
+	arcticShiftMonitor := monitor.NewArcticShiftMonitor()
+	arcticShiftMonitor.Register(prometheus.DefaultRegisterer)
+	arcticShiftPoller := sources.NewArcticShiftPoller(logger, keywordRepo, matchRepo, arcticShiftMonitor)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	if config.Config.EnableArcticShift {
@@ -90,6 +95,8 @@ func main() {
 	feedback := handlers.NewFeedbackHandler(mailer)
 
 	mux := http.NewServeMux()
+
+	mux.HandleFunc("GET /metrics", promhttp.Handler().ServeHTTP)
 
 	mux.HandleFunc("POST /users/init", private(users.InitializeUser))
 
