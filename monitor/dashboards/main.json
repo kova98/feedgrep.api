@@ -1,25 +1,6 @@
 {
   "annotations": {
-    "list": [
-      {
-        "builtIn": 1,
-        "datasource": {
-          "type": "grafana",
-          "uid": "-- Grafana --"
-        },
-        "enable": true,
-        "hide": true,
-        "iconColor": "rgba(0, 211, 255, 1)",
-        "name": "Annotations & Alerts",
-        "target": {
-          "limit": 100,
-          "matchAny": false,
-          "tags": [],
-          "type": "dashboard"
-        },
-        "type": "dashboard"
-      }
-    ]
+    "list": []
   },
   "editable": true,
   "fiscalYearStartMonth": 0,
@@ -44,7 +25,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "ffj9oqd80okxsc"
       },
       "fieldConfig": {
         "defaults": {
@@ -121,7 +102,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "ffj9oqd80okxsc"
           },
           "editorMode": "code",
           "expr": "feedgrep_keywords_active",
@@ -136,7 +117,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "ffj9oqd80okxsc"
       },
       "fieldConfig": {
         "defaults": {
@@ -218,7 +199,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "ffj9oqd80okxsc"
           },
           "editorMode": "code",
           "expr": "sum(increase(feedgrep_notifications_emails_sent_total[$__range])) or vector(0)",
@@ -246,7 +227,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "ffj9oqd80okxsc"
       },
       "fieldConfig": {
         "defaults": {
@@ -324,7 +305,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "ffj9oqd80okxsc"
           },
           "editorMode": "code",
           "expr": "sum(increase(feedgrep_api_requests_total[$__range]) / $__range_s * 60) or vector(0)",
@@ -339,7 +320,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "ffj9oqd80okxsc"
       },
       "fieldConfig": {
         "defaults": {
@@ -416,7 +397,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "ffj9oqd80okxsc"
           },
           "editorMode": "code",
           "expr": "histogram_quantile(0.95, sum by (method, route, le) (rate(feedgrep_api_request_duration_seconds_bucket[$__range]))) and on (method, route) sum by (method, route) (increase(feedgrep_api_requests_total[$__range]) > 0)",
@@ -431,7 +412,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "ffj9oqd80okxsc"
       },
       "fieldConfig": {
         "defaults": {
@@ -513,7 +494,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "ffj9oqd80okxsc"
           },
           "editorMode": "code",
           "expr": "sum(increase(feedgrep_api_requests_total{status=~\"5..\"}[$__range])) or vector(0)",
@@ -541,7 +522,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "ffj9oqd80okxsc"
       },
       "fieldConfig": {
         "defaults": {
@@ -619,7 +600,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "ffj9oqd80okxsc"
           },
           "editorMode": "code",
           "expr": "sum by (kind) (rate(feedgrep_arcticshift_items_processed_total[$__rate_interval]) * 60)",
@@ -634,7 +615,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "ffj9oqd80okxsc"
       },
       "description": "How long it takes for us to get a submission after it's posted on Reddit.",
       "fieldConfig": {
@@ -712,7 +693,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "ffj9oqd80okxsc"
           },
           "editorMode": "code",
           "expr": "feedgrep_arcticshift_lag_seconds",
@@ -727,7 +708,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "ffj9oqd80okxsc"
       },
       "fieldConfig": {
         "defaults": {
@@ -804,7 +785,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "ffj9oqd80okxsc"
           },
           "editorMode": "code",
           "expr": "sum by (kind) (rate(feedgrep_arcticshift_request_duration_seconds_count{status=\"error\"}[$__rate_interval]) * 60)",
@@ -819,7 +800,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "ffj9oqd80okxsc"
       },
       "fieldConfig": {
         "defaults": {
@@ -896,7 +877,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "ffj9oqd80okxsc"
           },
           "editorMode": "code",
           "expr": "histogram_quantile(0.95, sum by (kind, le) (rate(feedgrep_arcticshift_request_duration_seconds_bucket[$__rate_interval])))",
@@ -912,7 +893,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "ffj9oqd80okxsc"
       },
       "fieldConfig": {
         "defaults": {
@@ -989,7 +970,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "ffj9oqd80okxsc"
           },
           "editorMode": "code",
           "expr": "histogram_quantile(0.95, sum by (kind, le) (rate(feedgrep_arcticshift_processing_duration_seconds_bucket[$__rate_interval])))",
@@ -1004,7 +985,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "ffj9oqd80okxsc"
       },
       "fieldConfig": {
         "defaults": {
@@ -1081,7 +1062,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "ffj9oqd80okxsc"
           },
           "editorMode": "code",
           "expr": "histogram_quantile(0.95, sum by (kind, match_mode, le) (rate(feedgrep_arcticshift_match_evaluation_duration_seconds_bucket[$__rate_interval])))",
