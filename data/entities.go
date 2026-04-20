@@ -27,6 +27,17 @@ type RateLimitCounter struct {
 	UpdatedAt time.Time `db:"updated_at"`
 }
 
+type AuthActionToken struct {
+	ID        uuid.UUID  `db:"id"`
+	UserID    string     `db:"user_id"`
+	Email     string     `db:"email"`
+	Action    string     `db:"action"`
+	TokenHash string     `db:"token_hash"`
+	ExpiresAt time.Time  `db:"expires_at"`
+	UsedAt    *time.Time `db:"used_at"`
+	CreatedAt time.Time  `db:"created_at"`
+}
+
 type Keyword struct {
 	ID         int             `db:"id"`
 	UserID     uuid.UUID       `db:"user_id"`

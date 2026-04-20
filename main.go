@@ -63,15 +63,13 @@ func main() {
 	keywordRepo := repos.NewKeywordRepo(db)
 	matchRepo := repos.NewMatchRepo(db)
 	rateLimitRepo := repos.NewRateLimitRepo(db)
+	authActionTokenRepo := repos.NewAuthActionTokenRepo(db)
 
 	// TODO: clean this shit up
 	smartFilterGenerator := handlers.NewSmartFilterGenerator(config.Config.OpenAIAPIKey, config.Config.OpenAIModel)
 
 	keywords := handlers.NewKeywordHandler(keywordRepo, matchRepo, rateLimitRepo, config.Config.SearchAPIURL, smartFilterGenerator)
 	matches := handlers.NewMatchHandler(matchRepo)
-	keycloakClient := gocloak.NewClient(config.Config.KeycloakURL)
-	auth = handlers.NewAuthHandler(keycloakClient)
-	go auth.StartTokenTicker()
 
 	arcticShiftMonitor := monitor.NewArcticShiftMonitor()
 	arcticShiftMonitor.Register(prometheus.DefaultRegisterer)
@@ -93,9 +91,14 @@ func main() {
 		config.Config.SMTPHost,
 		config.Config.SMTPPort,
 		config.Config.SMTPFrom,
+		config.Config.SMTPUsername,
 		config.Config.SMTPPassword,
 		config.Config.AppBaseURL,
 	)
+	keycloakClient := gocloak.NewClient(config.Config.KeycloakURL)
+	auth = handlers.NewAuthHandler(keycloakClient, authActionTokenRepo, mailer)
+	go auth.StartTokenTicker()
+
 	notifier := NewNotifier(mailer, matchRepo, usersRepo, notificationsMonitor)
 	go notifier.Start(ctx)
 
@@ -104,6 +107,13 @@ func main() {
 	mux := http.NewServeMux()
 
 	mux.Handle("GET /metrics", promhttp.Handler())
+
+	mux.Handle("POST /auth/login", public(auth.Login))
+	mux.Handle("POST /auth/register", public(auth.Register))
+	mux.Handle("POST /auth/reset-password", public(auth.ResetPassword))
+	mux.Handle("POST /auth/reset-password/confirm", public(auth.ConfirmResetPassword))
+	mux.Handle("POST /auth/refresh", public(auth.Refresh))
+	mux.Handle("POST /auth/logout", public(auth.Logout))
 
 	mux.Handle("POST /users/init", private(users.InitializeUser))
 	mux.Handle("POST /keywords", private(keywords.CreateKeyword))

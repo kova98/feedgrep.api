@@ -23,15 +23,17 @@ type Mailer struct {
 	smtpHost string
 	smtpPort string
 	from     string
+	username string
 	password string
 	appBase  string
 }
 
-func NewMailer(smtpHost, smtpPort, from, password, appBase string) *Mailer {
+func NewMailer(smtpHost, smtpPort, from, username, password, appBase string) *Mailer {
 	return &Mailer{
 		smtpHost: smtpHost,
 		smtpPort: smtpPort,
 		from:     from,
+		username: username,
 		password: password,
 		appBase:  strings.TrimRight(appBase, "/"),
 	}
@@ -184,6 +186,17 @@ func (h *Mailer) RedditDigestEmail(email string, matches []data.Match) (models.E
 	}, nil
 }
 
+func (h *Mailer) PasswordResetEmail(email, link string) models.Email {
+	return models.Email{
+		To:      email,
+		Subject: "Reset your feedgrep password",
+		Body: fmt.Sprintf(`
+<p>Use this link to reset your feedgrep password.</p>
+<p><a href="%s">Reset password</a></p>
+<p>If you did not request this, you can ignore this email.</p>`, link),
+	}
+}
+
 func (h *Mailer) Send(mail models.Email) error {
 	message := fmt.Sprintf(`From: feedgrep <%s>
 To: %s
@@ -193,7 +206,7 @@ Content-Type: text/html; charset=UTF-8
 
 %s`, h.from, mail.To, mail.Subject, mail.Body)
 
-	auth := smtp.PlainAuth("", h.from, h.password, h.smtpHost)
+	auth := smtp.PlainAuth("", h.username, h.password, h.smtpHost)
 	addr := fmt.Sprintf("%s:%s", h.smtpHost, h.smtpPort)
 	err := smtp.SendMail(addr, auth, h.from, []string{mail.To}, []byte(message))
 	if err != nil {

@@ -22,6 +22,7 @@ type AppConfig struct {
 	SMTPHost                   string
 	SMTPPort                   string
 	SMTPFrom                   string
+	SMTPUsername               string
 	SMTPPassword               string
 	PostPollIntervalMs         int
 	AppEnv                     string // EnvDevelopment or EnvProduction
@@ -49,6 +50,7 @@ func LoadConfig() {
 	cfg.SMTPHost = loadRequired("SMTP_HOST")
 	cfg.SMTPPort = loadRequired("SMTP_PORT")
 	cfg.SMTPFrom = loadRequired("SMTP_FROM")
+	cfg.SMTPUsername = loadRequired("SMTP_USERNAME")
 	cfg.SMTPPassword = loadRequired("SMTP_PASSWORD")
 	cfg.PostPollIntervalMs = parseIntEnv(loadOptional("POST_POLL_INTERVAL_MS", "3000"))
 	cfg.EnableArcticShift = parseBoolEnv(loadOptional("ENABLE_ARCTICSHIFT_POLLING", "true"))
